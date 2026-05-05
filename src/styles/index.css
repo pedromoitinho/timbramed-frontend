@@ -1,0 +1,35 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,650;9..144,750&family=Manrope:wght@400;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: "Manrope", sans-serif;
+  color: #101936;
+  background: #f7f0e3;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f7f0e3 0%, #f3e6cc 52%, #edf1e5 100%);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.glass-card {
+  background: #fffaf0;
+  border: 1px solid rgba(16, 25, 54, 0.1);
+  box-shadow: 0 12px 30px rgba(16, 25, 54, 0.1);
+}
