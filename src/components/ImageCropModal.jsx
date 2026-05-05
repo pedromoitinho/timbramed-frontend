@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from "react"
 
 const defaultCropBox = { x: 8, y: 4, w: 84, h: 92 }
 const cropHandles = [
-  { mode: "nw", corner: true, className: "-left-1 -top-1 h-3 w-3 cursor-nwse-resize rounded-full" },
-  { mode: "n", corner: false, className: "left-1/2 -top-1 h-3 w-6 -translate-x-1/2 cursor-ns-resize rounded-full" },
-  { mode: "ne", corner: true, className: "-right-1 -top-1 h-3 w-3 cursor-nesw-resize rounded-full" },
-  { mode: "e", corner: false, className: "-right-1 top-1/2 h-6 w-3 -translate-y-1/2 cursor-ew-resize rounded-full" },
-  { mode: "se", corner: true, className: "-bottom-1 -right-1 h-3 w-3 cursor-nwse-resize rounded-full" },
-  { mode: "s", corner: false, className: "-bottom-1 left-1/2 h-3 w-6 -translate-x-1/2 cursor-ns-resize rounded-full" },
-  { mode: "sw", corner: true, className: "-bottom-1 -left-1 h-3 w-3 cursor-nesw-resize rounded-full" },
-  { mode: "w", corner: false, className: "-left-1 top-1/2 h-6 w-3 -translate-y-1/2 cursor-ew-resize rounded-full" }
+  { mode: "nw", corner: true, className: "-left-1.5 -top-1.5 h-5 w-5 cursor-nwse-resize rounded-full" },
+  { mode: "n", corner: false, className: "left-1/2 -top-1.5 h-5 w-8 -translate-x-1/2 cursor-ns-resize rounded-full" },
+  { mode: "ne", corner: true, className: "-right-1.5 -top-1.5 h-5 w-5 cursor-nesw-resize rounded-full" },
+  { mode: "e", corner: false, className: "-right-1.5 top-1/2 h-8 w-5 -translate-y-1/2 cursor-ew-resize rounded-full" },
+  { mode: "se", corner: true, className: "-bottom-1.5 -right-1.5 h-5 w-5 cursor-nwse-resize rounded-full" },
+  { mode: "s", corner: false, className: "-bottom-1.5 left-1/2 h-5 w-8 -translate-x-1/2 cursor-ns-resize rounded-full" },
+  { mode: "sw", corner: true, className: "-bottom-1.5 -left-1.5 h-5 w-5 cursor-nesw-resize rounded-full" },
+  { mode: "w", corner: false, className: "-left-1.5 top-1/2 h-8 w-5 -translate-y-1/2 cursor-ew-resize rounded-full" }
 ]
 
 function clamp(value, min, max) {

@@ -235,19 +235,42 @@ function RelatorioView({ hospital, onHospitalSaved }) {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [previewUrl, setPreviewUrl] = useState("")
+  const [cropSourceUrl, setCropSourceUrl] = useState("")
+  const [cropOpen, setCropOpen] = useState(false)
 
   useEffect(() => {
-    return () => { if (previewUrl) window.URL.revokeObjectURL(previewUrl) }
-  }, [previewUrl])
+    return () => {
+      if (previewUrl) window.URL.revokeObjectURL(previewUrl)
+      if (cropSourceUrl) window.URL.revokeObjectURL(cropSourceUrl)
+    }
+  }, [previewUrl, cropSourceUrl])
 
   function handleFile(event) {
     const file = event.target.files?.[0]
     event.target.value = ""
     if (!file) return
-    if (previewUrl) window.URL.revokeObjectURL(previewUrl)
-    setPreviewUrl(window.URL.createObjectURL(file))
-    setSuccess("Arquivo selecionado. Clique em Salvar para finalizar.")
+    if (cropSourceUrl) window.URL.revokeObjectURL(cropSourceUrl)
+    setCropSourceUrl(window.URL.createObjectURL(file))
+    setCropOpen(true)
     setError("")
+    setSuccess("")
+  }
+
+  function cancelCrop() {
+    if (cropSourceUrl) window.URL.revokeObjectURL(cropSourceUrl)
+    setCropSourceUrl("")
+    setCropOpen(false)
+  }
+
+  async function confirmCrop(canvas) {
+    const blob = await canvasToBlob(canvas, "image/png", 0.95)
+    if (!blob) return
+    if (previewUrl) window.URL.revokeObjectURL(previewUrl)
+    if (cropSourceUrl) window.URL.revokeObjectURL(cropSourceUrl)
+    setPreviewUrl(window.URL.createObjectURL(blob))
+    setCropSourceUrl("")
+    setCropOpen(false)
+    setSuccess("Recorte aplicado. Clique em Salvar para finalizar.")
   }
 
   async function saveReport() {
@@ -314,6 +337,10 @@ function RelatorioView({ hospital, onHospitalSaved }) {
           </div>
         </div>
       </div>
+
+      <ImageCropModal open={cropOpen} sourceImageUrl={cropSourceUrl} title="Recorte o relatório"
+        description="Arraste a caixa para deixar somente a área útil do relatório timbrado."
+        areaLabel="Área do relatório" onCancel={cancelCrop} onConfirm={confirmCrop} />
     </div>
   )
 }
