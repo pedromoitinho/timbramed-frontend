@@ -161,6 +161,13 @@ export function updateStamp(hospitalId, payload) {
   })
 }
 
+export function updateReportImage(hospitalId, payload) {
+  return apiRequest(`/hospitals/${hospitalId}/report`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  })
+}
+
 export function listCatalog(hospitalId) {
   return apiRequest(`/hospitals/${hospitalId}/catalog`)
 }

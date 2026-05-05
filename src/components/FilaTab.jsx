@@ -14,6 +14,7 @@ function matchesSearch(report, search) {
 
 export function FilaTab({ hospital, user }) {
   const [search, setSearch] = useState("")
+  const [comRelatorio, setComRelatorio] = useState(false)
   const fila = usePrintQueueStore(state => state.fila)
   const selecionados = usePrintQueueStore(state => state.selecionadosFila)
   const carregando = usePrintQueueStore(state => state.carregando)
@@ -34,7 +35,8 @@ export function FilaTab({ hospital, user }) {
       setCarregando(true); setErro("")
       const blob = await generatePdf({
         hospitalId: hospital.id,
-        pacientes: selectedReports.map(report => reportToPatient(report, user))
+        pacientes: selectedReports.map(report => reportToPatient(report, user)),
+        comRelatorio
       })
       openPdf(blob)
       markCompleted(selectedReports.map(report => report.id))
@@ -50,10 +52,22 @@ export function FilaTab({ hospital, user }) {
           <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-moss">Fila de impressão</p>
           <h2 className="mt-2 font-display text-3xl text-ink sm:text-4xl">{fila.length} aguardando</h2>
         </div>
-        <button onClick={handlePrintSelected} disabled={carregando || selectedReports.length === 0}
-          className="rounded-2xl bg-clay px-5 py-3 font-extrabold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50">
-          Imprimir Selecionados
-        </button>
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+          <div className="flex rounded-2xl bg-paper p-1">
+            <button type="button" onClick={() => setComRelatorio(false)}
+              className={`rounded-xl px-4 py-2 text-xs font-extrabold transition ${!comRelatorio ? "bg-ink text-paper" : "text-ink hover:bg-white"}`}>
+              Sem relatório
+            </button>
+            <button type="button" onClick={() => setComRelatorio(true)}
+              className={`rounded-xl px-4 py-2 text-xs font-extrabold transition ${comRelatorio ? "bg-ink text-paper" : "text-ink hover:bg-white"}`}>
+              Com relatório
+            </button>
+          </div>
+          <button onClick={handlePrintSelected} disabled={carregando || selectedReports.length === 0}
+            className="rounded-2xl bg-clay px-5 py-3 font-extrabold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50">
+            Imprimir
+          </button>
+        </div>
       </div>
       <div className="mt-4">
         <input value={search} onChange={event => setSearch(event.target.value)}
