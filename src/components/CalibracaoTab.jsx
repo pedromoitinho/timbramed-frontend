@@ -151,6 +151,10 @@ function CalibracaoView({ hospital, onCoordinatesSaved }) {
       const original = active.initial
       if (active.mode === "resize") {
         next[active.key] = { ...original, w: clamp(original.w + dx, 8, 100 - original.x), h: clamp(original.h + dy, 4, 100 - original.y) }
+      } else if (active.mode === "resize-w") {
+        next[active.key] = { ...original, w: clamp(original.w + dx, 8, 100 - original.x) }
+      } else if (active.mode === "resize-h") {
+        next[active.key] = { ...original, h: clamp(original.h + dy, 4, 100 - original.y) }
       } else {
         next[active.key] = { ...original, x: clamp(original.x + dx, 0, 100 - original.w), y: clamp(original.y + dy, 0, 100 - original.h) }
       }
@@ -197,8 +201,12 @@ function CalibracaoView({ hospital, onCoordinatesSaved }) {
               className={`absolute cursor-move rounded-lg border-2 ${boxColors[key]} p-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-ink shadow-sm`}
               style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}>
               {key === "carimbo" && hospital.carimboImagem ? <img src={hospital.carimboImagem} alt="" className="h-full w-full object-contain contrast-150 brightness-90 saturate-115" /> : boxLabels[key]}
+              <div onPointerDown={event => startMove(event, key, "resize-w")}
+                className="absolute right-0 top-1/2 h-8 w-3 -translate-y-1/2 translate-x-1/2 cursor-ew-resize rounded-full bg-ink/70 text-[0px] leading-none text-paper shadow-sm" />
+              <div onPointerDown={event => startMove(event, key, "resize-h")}
+                className="absolute bottom-0 left-1/2 h-3 w-8 -translate-x-1/2 translate-y-1/2 cursor-ns-resize rounded-full bg-ink/70 text-[0px] leading-none text-paper shadow-sm" />
               <button type="button" onPointerDown={event => startMove(event, key, "resize")}
-                className="absolute bottom-0 right-0 h-3 w-3 translate-x-1/2 translate-y-1/2 rounded-full bg-ink text-[0px] leading-none text-paper shadow-sm">
+                className="absolute bottom-0 right-0 h-5 w-5 translate-x-1/2 translate-y-1/2 rounded-full bg-ink text-[0px] leading-none text-paper shadow-sm">
                 redim
               </button>
             </div>
