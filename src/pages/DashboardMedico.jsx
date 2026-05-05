@@ -8,14 +8,14 @@ import { getHospital, listCatalog, listHospitals, listReports } from "../service
 import { usePrintQueueStore } from "../store/usePrintQueueStore.js"
 
 const tabs = [
-  { id: "atendimento", label: "Atendimento", title: "Atendimento", description: "Preencha paciente, sintoma, CID e mensagem." },
+  { id: "atendimento", label: "Atendimento", title: "Atendimento", description: "Preencha paciente, CID e mensagem do relatório." },
   { id: "fila", label: "Fila", title: "Fila de impressão", description: "Selecione pacientes aguardando e imprima em lote." },
   { id: "concluidos", label: "Concluídos", title: "Concluídos", description: "Selecione pacientes já impressos para re-imprimir." },
-  { id: "cadastros", label: "Cadastros", title: "Cadastros", description: "Gerencie sintomas, CIDs, mensagens e carimbo." },
+  { id: "cadastros", label: "Cadastros", title: "Cadastros", description: "Gerencie CIDs e carimbo." },
   { id: "calibracao", label: "Calibração", title: "Calibração", description: "Ajuste as coordenadas do timbrado por foto." }
 ]
 
-const emptyCatalog = { sintomas: [], cids: [], mensagens: [] }
+const emptyCatalog = { cids: [] }
 
 export function DashboardMedico({ user }) {
   const [hospital, setHospital] = useState(null)
@@ -28,19 +28,13 @@ export function DashboardMedico({ user }) {
   const activeInfo = useMemo(() => tabs.find(tab => tab.id === activeTab) || tabs[0], [activeTab])
 
   async function reloadCatalog(nextHospitalId = hospital?.id) {
-    if (!nextHospitalId) {
-      return
-    }
-
+    if (!nextHospitalId) return
     const data = await listCatalog(nextHospitalId)
     setCatalog(data)
   }
 
   async function reloadReports(nextHospitalId = hospital?.id) {
-    if (!nextHospitalId) {
-      return
-    }
-
+    if (!nextHospitalId) return
     const reports = await listReports(nextHospitalId)
     setReports(reports)
   }
@@ -48,17 +42,14 @@ export function DashboardMedico({ user }) {
   useEffect(() => {
     async function load() {
       try {
-        setLoading(true)
-        setError("")
+        setLoading(true); setError("")
         const hospitals = await listHospitals()
         const current = hospitals.find(item => item.id === user?.hospitalAtualId) || hospitals[0]
-
         if (!current) {
           setHospital(null)
           setError("Nenhum ambiente configurado para este médico")
           return
         }
-
         const fullHospital = await getHospital(current.id)
         setHospital(fullHospital)
         const [catalogData, reports] = await Promise.all([listCatalog(current.id), listReports(current.id)])
@@ -66,19 +57,13 @@ export function DashboardMedico({ user }) {
         setReports(reports)
       } catch (apiError) {
         setError(apiError.message)
-      } finally {
-        setLoading(false)
-      }
+      } finally { setLoading(false) }
     }
-
     load()
   }, [setReports, user?.hospitalAtualId])
 
   function handleCoordinatesSaved(coordinates) {
-    setHospital(current => ({
-      ...current,
-      coordenadas: coordinates
-    }))
+    setHospital(current => ({ ...current, coordenadas: coordinates }))
   }
 
   function handleHospitalSaved(nextHospital) {
@@ -106,11 +91,8 @@ export function DashboardMedico({ user }) {
           <div className="-mx-1 overflow-x-auto px-1 pb-1">
             <div className="flex min-w-max gap-2 lg:min-w-0 lg:justify-end">
               {tabs.map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`shrink-0 whitespace-nowrap rounded-2xl px-4 py-3 text-xs font-extrabold transition ${activeTab === tab.id ? "bg-ink text-paper" : "bg-paper text-ink hover:bg-ink/10"}`}
-                >
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className={`shrink-0 whitespace-nowrap rounded-2xl px-4 py-3 text-xs font-extrabold transition ${activeTab === tab.id ? "bg-ink text-paper" : "bg-paper text-ink hover:bg-ink/10"}`}>
                   {tab.label}
                 </button>
               ))}

@@ -63,25 +63,25 @@ export function LandingPage({ onNavigate }) {
           <article className="rounded-2xl border border-ink/10 bg-white p-6 shadow-sm">
             <h3 className="font-display text-2xl text-ink">Atendimento</h3>
             <p className="mt-3 text-sm font-semibold leading-6 text-ink/70">
-              Fluxo completo de edição de relatórios: preencha paciente, selecione sintoma com CID
-              vinculado e escolha uma mensagem pré-determinada. O texto do relatório é montado
-              automaticamente — é só revisar e salvar na fila de impressão.
+              Fluxo completo de criação de relatórios: preencha paciente, selecione o CID
+              e escreva o texto do relatório manualmente. 
+              É só revisar e salvar na fila de impressão.
             </p>
           </article>
           <article className="rounded-2xl border border-ink/10 bg-white p-6 shadow-sm">
             <h3 className="font-display text-2xl text-ink">Fila de impressão</h3>
             <p className="mt-3 text-sm font-semibold leading-6 text-ink/70">
               Gerencie os relatórios aguardando impressão em lote. Selecione um ou vários pacientes,
-              pesquise por nome, sintoma ou CID, e imprima tudo de uma vez. O PDF gerado respeita
+              pesquise por nome ou CID, e imprima tudo de uma vez. O PDF gerado respeita
               a calibração A5 do seu timbrado.
             </p>
           </article>
           <article className="rounded-2xl border border-ink/10 bg-white p-6 shadow-sm">
             <h3 className="font-display text-2xl text-ink">Catálogo inteligente</h3>
             <p className="mt-3 text-sm font-semibold leading-6 text-ink/70">
-              Cadastre seus próprios sintomas, CIDs e mensagens modelo. Cada sintoma pode ter um
-              CID padrão e mensagens vinculadas — o sistema filtra automaticamente as opções
-              relevantes durante o atendimento, agilizando o preenchimento.
+              Cadastre seus próprios CIDs e o carimbo médico.
+              Os CIDs ficam disponíveis para seleção durante o atendimento,
+              agilizando o preenchimento do relatório.
             </p>
           </article>
           <article className="rounded-2xl border border-ink/10 bg-white p-6 shadow-sm">
@@ -104,7 +104,7 @@ export function LandingPage({ onNavigate }) {
             <h3 className="font-display text-2xl text-ink">Histórico completo</h3>
             <p className="mt-3 text-sm font-semibold leading-6 text-ink/70">
               Todos os relatórios impressos ficam armazenados no histórico. Re-imprima quando
-              precisar sem perder o rastro. Pesquise por paciente, sintoma, CID ou data de
+              precisar sem perder o rastro. Pesquise por paciente, CID ou data de
               impressão para encontrar rapidamente qualquer laudo.
             </p>
           </article>

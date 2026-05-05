@@ -10,8 +10,6 @@ export function reportToPatient(report, user) {
   return {
     id: report.id,
     pacienteNome: report.pacienteNome,
-    sintomaId: report.sintomaId,
-    sintomaNome: report.sintomaNome,
     mensagemFinal: report.mensagemFinal,
     cid: report.cid,
     dataRelatorio: report.dataRelatorio,

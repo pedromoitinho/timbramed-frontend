@@ -165,24 +165,6 @@ export function listCatalog(hospitalId) {
   return apiRequest(`/hospitals/${hospitalId}/catalog`)
 }
 
-export function createSymptom(hospitalId, payload) {
-  return apiRequest(`/hospitals/${hospitalId}/symptoms`, {
-    method: "POST",
-    body: JSON.stringify(payload)
-  })
-}
-
-export function updateSymptom(id, payload) {
-  return apiRequest(`/symptoms/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(payload)
-  })
-}
-
-export function deleteSymptom(id) {
-  return apiRequest(`/symptoms/${id}`, { method: "DELETE" })
-}
-
 export function createCid(hospitalId, payload) {
   return apiRequest(`/hospitals/${hospitalId}/cids`, {
     method: "POST",
@@ -199,24 +181,6 @@ export function updateCid(id, payload) {
 
 export function deleteCid(id) {
   return apiRequest(`/cids/${id}`, { method: "DELETE" })
-}
-
-export function createMessage(hospitalId, payload) {
-  return apiRequest(`/hospitals/${hospitalId}/messages`, {
-    method: "POST",
-    body: JSON.stringify(payload)
-  })
-}
-
-export function updateMessage(id, payload) {
-  return apiRequest(`/messages/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(payload)
-  })
-}
-
-export function deleteMessage(id) {
-  return apiRequest(`/messages/${id}`, { method: "DELETE" })
 }
 
 export function listReports(hospitalId) {
