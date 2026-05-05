@@ -4,15 +4,20 @@ import { usePrintQueueStore } from "../store/usePrintQueueStore.js"
 import { formatDate } from "../utils/reports.js"
 
 export function AtendimentoTab({ hospital, catalog }) {
-  const [form, setForm] = useState({ pacienteNome: "", cid: "", mensagemFinal: "" })
+  const [form, setForm] = useState({ pacienteNome: "", cids: [], mensagemFinal: "" })
   const [localError, setLocalError] = useState("")
   const [success, setSuccess] = useState("")
   const addReport = usePrintQueueStore(state => state.addReport)
   const carregando = usePrintQueueStore(state => state.carregando)
   const setCarregando = usePrintQueueStore(state => state.setCarregando)
 
-  function updateField(field, value) {
-    setForm(current => ({ ...current, [field]: value }))
+  function toggleCid(codigo) {
+    setForm(current => ({
+      ...current,
+      cids: current.cids.includes(codigo)
+        ? current.cids.filter(c => c !== codigo)
+        : [...current.cids, codigo]
+    }))
   }
 
   async function handleSubmit(event) {
@@ -28,11 +33,11 @@ export function AtendimentoTab({ hospital, catalog }) {
         hospitalId: hospital.id,
         pacienteNome: form.pacienteNome.trim(),
         mensagemFinal: form.mensagemFinal.trim(),
-        cid: form.cid || null
+        cid: form.cids.length > 0 ? form.cids.join(", ") : null
       })
       addReport(report)
       setForm(current => ({
-        pacienteNome: "", cid: current.cid, mensagemFinal: ""
+        pacienteNome: "", cids: current.cids, mensagemFinal: ""
       }))
       setSuccess("Paciente adicionado a fila")
     } catch (error) {
@@ -49,21 +54,27 @@ export function AtendimentoTab({ hospital, catalog }) {
       <form onSubmit={handleSubmit} className="mt-6 grid gap-4 lg:grid-cols-2">
         <label className="block lg:col-span-2">
           <span className="text-sm font-bold text-ink">Nome do paciente</span>
-          <input value={form.pacienteNome} onChange={event => updateField("pacienteNome", event.target.value)}
+          <input value={form.pacienteNome} onChange={event => setForm(current => ({ ...current, pacienteNome: event.target.value }))}
             className="mt-2 w-full rounded-2xl border border-ink/10 bg-paper/40 px-4 py-3 outline-none ring-pen/20 transition focus:ring-4"
             placeholder="Ex: Maria Silva" />
         </label>
-        <label className="block lg:col-span-2">
-          <span className="text-sm font-bold text-ink">CID</span>
-          <select value={form.cid} onChange={event => updateField("cid", event.target.value)}
-            className="mt-2 w-full rounded-2xl border border-ink/10 bg-paper/40 px-4 py-3 outline-none ring-pen/20 transition focus:ring-4">
-            <option value="">Selecionar CID</option>
-            {catalog.cids.map(item => <option key={item.id} value={item.codigo}>{item.codigo}</option>)}
-          </select>
-        </label>
+        <fieldset className="lg:col-span-2">
+          <legend className="text-sm font-bold text-ink">CIDs</legend>
+          <span className="mt-1 block text-xs font-semibold text-ink/50">Selecione um ou mais CIDs.</span>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {catalog.cids.map(item => (
+              <label key={item.id}
+                className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition ${form.cids.includes(item.codigo) ? "border-ink bg-ink text-paper" : "border-ink/10 bg-paper/40 text-ink hover:bg-ink/5"}`}>
+                <input type="checkbox" checked={form.cids.includes(item.codigo)} onChange={() => toggleCid(item.codigo)} className="hidden" />
+                {item.codigo}
+              </label>
+            ))}
+            {catalog.cids.length === 0 && <span className="text-sm font-semibold text-ink/45">Nenhum CID cadastrado. Vá em Cadastros para criar.</span>}
+          </div>
+        </fieldset>
         <label className="block lg:col-span-2">
           <span className="text-sm font-bold text-ink">Texto do relatório</span>
-          <textarea value={form.mensagemFinal} onChange={event => updateField("mensagemFinal", event.target.value)}
+          <textarea value={form.mensagemFinal} onChange={event => setForm(current => ({ ...current, mensagemFinal: event.target.value }))}
             rows={7}
             className="mt-2 w-full resize-y rounded-2xl border border-ink/10 bg-paper/40 px-4 py-3 outline-none ring-pen/20 transition focus:ring-4"
             placeholder="Escreva o relatório manualmente..." />
