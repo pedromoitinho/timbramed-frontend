@@ -10,8 +10,8 @@ const subtabs = [
 
 const imageAccept = "image" + "/" + "*"
 const PEN_BLUE = "#1A5BFE"
-const CANVAS_W = 600
-const CANVAS_H = 200
+const CANVAS_W = 800
+const CANVAS_H = 320
 
 function TextInput({ value, onChange, placeholder }) {
   return (
@@ -184,6 +184,13 @@ function SignaturePad({ hospital, onHospitalSaved }) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[24rem_minmax(0,1fr)]">
+      <div className="rounded-2xl border border-ink/10 p-4">
+        <SectionHeader eyebrow="Preview" title="Assinatura cadastrada" description="Essa imagem sera sobreposta ao carimbo no PDF." />
+        <div className="mt-4 flex min-h-56 items-center justify-center rounded-2xl border border-dashed border-ink/15 bg-paper/40 p-5">
+          {hospital.assinaturaImagem ? <img src={hospital.assinaturaImagem} alt="Assinatura cadastrada" className="max-h-32 w-full object-contain" style={{ filter: "brightness(1) saturate(1)" }} />
+          : <span className="text-center text-sm font-bold text-ink/45">Nenhuma assinatura cadastrada ainda.</span>}
+        </div>
+      </div>
       <div className="rounded-2xl border border-ink/10 bg-paper/30 p-4">
         <SectionHeader eyebrow="Desenhar" title="Assinatura" description="Desenhe sua assinatura com o mouse ou touch. A cor azul caneta BIC sera usada no documento." />
         <div className="mt-4 space-y-3">
@@ -197,13 +204,6 @@ function SignaturePad({ hospital, onHospitalSaved }) {
             <button type="button" onClick={saveSignature} disabled={busy} className="rounded-2xl bg-ink px-4 py-3 text-sm font-extrabold text-paper disabled:opacity-50">Salvar</button>
           </div>
           {hospital.assinaturaImagem && <button type="button" onClick={removeSignature} disabled={busy} className="w-full rounded-2xl border border-clay/30 px-4 py-3 text-sm font-extrabold text-clay disabled:opacity-50">Remover assinatura atual</button>}
-        </div>
-      </div>
-      <div className="rounded-2xl border border-ink/10 p-4">
-        <SectionHeader eyebrow="Preview" title="Assinatura cadastrada" description="Essa imagem sera sobreposta ao carimbo no PDF." />
-        <div className="mt-4 flex min-h-56 items-center justify-center rounded-2xl border border-dashed border-ink/15 bg-paper/40 p-5">
-          {hospital.assinaturaImagem ? <img src={hospital.assinaturaImagem} alt="Assinatura cadastrada" className="max-h-32 w-full object-contain" style={{ filter: "brightness(1) saturate(1)" }} />
-          : <span className="text-center text-sm font-bold text-ink/45">Nenhuma assinatura cadastrada. Desenhe ao lado.</span>}
         </div>
       </div>
     </div>
