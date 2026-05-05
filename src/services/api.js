@@ -1,4 +1,4 @@
-const configuredApiUrl = import.meta.env.VITE_API_URL || "http://localhost:3333"
+const configuredApiUrl = import.meta.env.VITE_API_URL || "https://timbramed-backend-509f27803168.herokuapp.com"
 const tokenStorageKey = "timbramed:token"
 
 function isBrowserLocalhost(hostname) {
