@@ -1,13 +1,17 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ImageCropModal } from "./ImageCropModal.jsx"
-import { createCid, deleteCid, updateCid, updateStamp } from "../services/api.js"
+import { createCid, deleteCid, updateCid, updateSignature, updateStamp } from "../services/api.js"
 
 const subtabs = [
   { id: "cids", label: "CIDs" },
-  { id: "carimbo", label: "Carimbo" }
+  { id: "carimbo", label: "Carimbo" },
+  { id: "assinatura", label: "Assinatura" }
 ]
 
 const imageAccept = "image" + "/" + "*"
+const PEN_BLUE = "#1A5BFE"
+const CANVAS_W = 600
+const CANVAS_H = 200
 
 function TextInput({ value, onChange, placeholder }) {
   return (
@@ -80,6 +84,130 @@ function stampCanvasFromCrop(sourceCanvas) {
   }
   context.putImageData(imageData, 0, 0)
   return canvas
+}
+
+function SignaturePad({ hospital, onHospitalSaved }) {
+  const canvasRef = useRef(null)
+  const [drawing, setDrawing] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+    ctx.strokeStyle = PEN_BLUE
+    ctx.lineWidth = 2.5
+    ctx.lineCap = "round"
+    ctx.lineJoin = "round"
+    if (hospital.assinaturaImagem) {
+      const img = new Image()
+      img.onload = () => ctx.drawImage(img, 0, 0, CANVAS_W, CANVAS_H)
+      img.src = hospital.assinaturaImagem
+    }
+  }, [hospital.assinaturaImagem])
+
+  function getPos(event) {
+    const canvas = canvasRef.current
+    if (!canvas) return { x: 0, y: 0 }
+    const rect = canvas.getBoundingClientRect()
+    const clientX = event.touches ? event.touches[0].clientX : event.clientX
+    const clientY = event.touches ? event.touches[0].clientY : event.clientY
+    return {
+      x: (clientX - rect.left) * (canvas.width / rect.width),
+      y: (clientY - rect.top) * (canvas.height / rect.height)
+    }
+  }
+
+  function startDraw(event) {
+    event.preventDefault()
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+    const pos = getPos(event)
+    ctx.beginPath()
+    ctx.moveTo(pos.x, pos.y)
+    setDrawing(true)
+  }
+
+  function draw(event) {
+    event.preventDefault()
+    if (!drawing) return
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+    const pos = getPos(event)
+    ctx.lineTo(pos.x, pos.y)
+    ctx.stroke()
+  }
+
+  function stopDraw(event) {
+    event.preventDefault()
+    setDrawing(false)
+  }
+
+  function clearCanvas() {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+  }
+
+  async function saveSignature() {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const dataUrl = canvas.toDataURL("image/png")
+    try {
+      setBusy(true); setError(""); setSuccess("")
+      const saved = await updateSignature(hospital.id, { assinaturaImagem: dataUrl })
+      onHospitalSaved?.(saved)
+      setSuccess("Assinatura salva")
+    } catch (apiError) { setError(apiError.message) }
+    finally { setBusy(false) }
+  }
+
+  async function removeSignature() {
+    clearCanvas()
+    try {
+      setBusy(true); setError(""); setSuccess("")
+      const saved = await updateSignature(hospital.id, { assinaturaImagem: null })
+      onHospitalSaved?.(saved)
+      setSuccess("Assinatura removida")
+    } catch (apiError) { setError(apiError.message) }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[24rem_minmax(0,1fr)]">
+      <div className="rounded-2xl border border-ink/10 bg-paper/30 p-4">
+        <SectionHeader eyebrow="Desenhar" title="Assinatura" description="Desenhe sua assinatura com o mouse ou touch. A cor azul caneta BIC sera usada no documento." />
+        <div className="mt-4 space-y-3">
+          <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
+            onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw}
+            onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw}
+            className="w-full cursor-crosshair rounded-2xl border-2 border-ink/15 bg-white"
+            style={{ touchAction: "none" }} />
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={clearCanvas} disabled={busy} className="rounded-2xl border border-ink/15 px-4 py-3 text-sm font-extrabold text-ink disabled:opacity-50">Limpar</button>
+            <button type="button" onClick={saveSignature} disabled={busy} className="rounded-2xl bg-ink px-4 py-3 text-sm font-extrabold text-paper disabled:opacity-50">Salvar</button>
+          </div>
+          {hospital.assinaturaImagem && <button type="button" onClick={removeSignature} disabled={busy} className="w-full rounded-2xl border border-clay/30 px-4 py-3 text-sm font-extrabold text-clay disabled:opacity-50">Remover assinatura atual</button>}
+        </div>
+      </div>
+      <div className="rounded-2xl border border-ink/10 p-4">
+        <SectionHeader eyebrow="Preview" title="Assinatura cadastrada" description="Essa imagem sera sobreposta ao carimbo no PDF." />
+        <div className="mt-4 flex min-h-56 items-center justify-center rounded-2xl border border-dashed border-ink/15 bg-paper/40 p-5">
+          {hospital.assinaturaImagem ? <img src={hospital.assinaturaImagem} alt="Assinatura cadastrada" className="max-h-32 w-full object-contain" style={{ filter: "brightness(1) saturate(1)" }} />
+          : <span className="text-center text-sm font-bold text-ink/45">Nenhuma assinatura cadastrada. Desenhe ao lado.</span>}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export function CadastrosTab({ hospital, catalog, reloadCatalog, onHospitalSaved }) {
@@ -160,9 +288,9 @@ export function CadastrosTab({ hospital, catalog, reloadCatalog, onHospitalSaved
         <div>
           <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-clay">Cadastros médicos</p>
           <h2 className="mt-2 font-display text-3xl text-ink sm:text-4xl">Cadastros</h2>
-          <p className="mt-1 text-sm font-semibold text-ink/55">Gerencie CIDs e o carimbo médico.</p>
+          <p className="mt-1 text-sm font-semibold text-ink/55">Gerencie CIDs, carimbo e assinatura.</p>
         </div>
-        <div className="grid grid-cols-2 gap-2 rounded-2xl bg-paper p-1">
+        <div className="grid grid-cols-3 gap-2 rounded-2xl bg-paper p-1">
           {subtabs.map(tab => (
             <button key={tab.id} type="button" onClick={() => setActiveSubtab(tab.id)}
               className={`rounded-xl px-3 py-3 text-xs font-extrabold transition ${activeSubtab === tab.id ? "bg-ink text-paper" : "text-ink hover:bg-white"}`}>
@@ -224,6 +352,8 @@ export function CadastrosTab({ hospital, catalog, reloadCatalog, onHospitalSaved
           </div>
         </div>
       )}
+
+      {activeSubtab === "assinatura" && <SignaturePad hospital={hospital} onHospitalSaved={onHospitalSaved} />}
 
       <ImageCropModal
         open={stampCropOpen}

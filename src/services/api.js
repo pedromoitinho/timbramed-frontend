@@ -168,6 +168,13 @@ export function updateReportImage(hospitalId, payload) {
   })
 }
 
+export function updateSignature(hospitalId, payload) {
+  return apiRequest(`/hospitals/${hospitalId}/signature`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  })
+}
+
 export function listCatalog(hospitalId) {
   return apiRequest(`/hospitals/${hospitalId}/catalog`)
 }
