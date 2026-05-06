@@ -51,13 +51,15 @@ function boxesFromCoordinates(coordinates) {
   const bodyY = cmToYPercent(coordinates.corpoYcm)
   const bodyW = cmToXPercent(Number(coordinates.corpoMaxXcm) - Number(coordinates.corpoXcm))
   const bodyH = cmToYPercent(Number(coordinates.corpoLimiteInferiorYcm) - Number(coordinates.corpoYcm))
+  const stampX = cmToXPercent(coordinates.carimboXcm)
+  const encX = cmToXPercent(coordinates.encerramentoXcm)
 
   return {
     titulo: { x: cmToXPercent(coordinates.tituloXcm), y: cmToYPercent(coordinates.tituloYcm), w: 24, h: 5 },
     corpo: { x: bodyX, y: bodyY, w: bodyW, h: bodyH },
     cid: { x: cmToXPercent(coordinates.cidXcm), y: cmToYPercent(coordinates.cidYcm), w: 28, h: 5 },
-    encerramento: { x: cmToXPercent(coordinates.encerramentoXcm), y: cmToYPercent(coordinates.encerramentoYcm), w: 30, h: 9 },
-    carimbo: { x: cmToXPercent(coordinates.carimboXcm), y: cmToYPercent(coordinates.carimboYcm), w: 26, h: 7 }
+    encerramento: { x: encX, y: cmToYPercent(coordinates.encerramentoYcm), w: 100 - encX, h: 9 },
+    carimbo: { x: stampX, y: cmToYPercent(coordinates.carimboYcm), w: 100 - stampX, h: cmToYPercent(2.4) }
   }
 }
 
@@ -126,6 +128,12 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
       } else {
         next[active.key] = { ...original, x: clamp(original.x + dx, 0, 100 - original.w), y: clamp(original.y + dy, 0, 100 - original.h) }
       }
+      if (active.key === "carimbo") {
+        next.carimbo = { ...next.carimbo, w: clamp(100 - next.carimbo.x, 12, 100 - next.carimbo.x) }
+      }
+      if (active.key === "encerramento") {
+        next.encerramento = { ...next.encerramento, w: clamp(100 - next.encerramento.x, 12, 100 - next.encerramento.x) }
+      }
       return next
     })
   }
@@ -171,14 +179,18 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
               {key === "carimbo" && hospital.carimboImagem ? <img src={hospital.carimboImagem} alt="" className="h-full w-full object-contain contrast-150 brightness-90 saturate-115" />
                 : key === "corpo" ? <span className="text-[10px]">{boxLabels[key]} ~{estimateFontSize(box)}pt</span>
                 : boxLabels[key]}
-              <div onPointerDown={event => startMove(event, key, "resize-w")}
-                className="absolute right-0 top-1/2 h-8 w-3 -translate-y-1/2 translate-x-1/2 cursor-ew-resize rounded-full bg-ink/70 text-[0px] leading-none text-paper shadow-sm" />
-              <div onPointerDown={event => startMove(event, key, "resize-h")}
-                className="absolute bottom-0 left-1/2 h-3 w-8 -translate-x-1/2 translate-y-1/2 cursor-ns-resize rounded-full bg-ink/70 text-[0px] leading-none text-paper shadow-sm" />
-              <button type="button" onPointerDown={event => startMove(event, key, "resize")}
-                className="absolute bottom-0 right-0 h-5 w-5 translate-x-1/2 translate-y-1/2 rounded-full bg-ink text-[0px] leading-none text-paper shadow-sm">
-                redim
-              </button>
+              {key === "corpo" && (
+                <>
+                  <div onPointerDown={event => startMove(event, key, "resize-w")}
+                    className="absolute right-0 top-1/2 h-8 w-3 -translate-y-1/2 translate-x-1/2 cursor-ew-resize rounded-full bg-ink/70 text-[0px] leading-none text-paper shadow-sm" />
+                  <div onPointerDown={event => startMove(event, key, "resize-h")}
+                    className="absolute bottom-0 left-1/2 h-3 w-8 -translate-x-1/2 translate-y-1/2 cursor-ns-resize rounded-full bg-ink/70 text-[0px] leading-none text-paper shadow-sm" />
+                  <button type="button" onPointerDown={event => startMove(event, key, "resize")}
+                    className="absolute bottom-0 right-0 h-5 w-5 translate-x-1/2 translate-y-1/2 rounded-full bg-ink text-[0px] leading-none text-paper shadow-sm">
+                    redim
+                  </button>
+                </>
+              )}
             </div>
           ))}
         </div>
