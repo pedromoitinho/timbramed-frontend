@@ -16,8 +16,22 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value))
 }
 
-function createDefaultCropBox(aspectRatio) {
+function cropBoxRatioFromImage(aspectRatio, imageAspectRatio) {
   if (!aspectRatio || !Number.isFinite(aspectRatio) || aspectRatio <= 0) {
+    return null
+  }
+
+  if (!imageAspectRatio || !Number.isFinite(imageAspectRatio) || imageAspectRatio <= 0) {
+    return null
+  }
+
+  return aspectRatio / imageAspectRatio
+}
+
+function createDefaultCropBox(aspectRatio, imageAspectRatio) {
+  const cropBoxAspectRatio = cropBoxRatioFromImage(aspectRatio, imageAspectRatio)
+
+  if (!cropBoxAspectRatio) {
     return defaultCropBox
   }
 
@@ -25,11 +39,11 @@ function createDefaultCropBox(aspectRatio) {
   const availableWidth = 100 - margin * 2
   const availableHeight = 100 - margin * 2
   let width = availableWidth
-  let height = width / aspectRatio
+  let height = width / cropBoxAspectRatio
 
   if (height > availableHeight) {
     height = availableHeight
-    width = height * aspectRatio
+    width = height * cropBoxAspectRatio
   }
 
   return {
@@ -56,12 +70,15 @@ export function ImageCropModal({
   const [activeCrop, setActiveCrop] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
+  const [imageAspectRatio, setImageAspectRatio] = useState(1)
   const cropStageRef = useRef(null)
   const cropImageRef = useRef(null)
+  const cropBoxAspectRatio = cropBoxRatioFromImage(aspectRatio, imageAspectRatio)
 
   useEffect(() => {
     if (open) {
-      setCropBox(createDefaultCropBox(aspectRatio))
+      setImageAspectRatio(1)
+      setCropBox(createDefaultCropBox(aspectRatio, 1))
       setActiveCrop(null)
       setBusy(false)
       setError("")
@@ -104,9 +121,9 @@ export function ImageCropModal({
         }
       }
 
-      if (aspectRatio && ["nw", "ne", "sw", "se"].includes(activeCrop.mode)) {
+      if (cropBoxAspectRatio && ["nw", "ne", "sw", "se"].includes(activeCrop.mode)) {
         const minWidth = 12
-        const minHeight = minWidth / aspectRatio
+        const minHeight = minWidth / cropBoxAspectRatio
         const mode = activeCrop.mode
         const anchorX = mode.includes("w") ? original.x + original.w : original.x
         const anchorY = mode.includes("n") ? original.y + original.h : original.y
@@ -119,10 +136,10 @@ export function ImageCropModal({
         let width = Math.abs(cornerX - anchorX)
         let height = Math.abs(cornerY - anchorY)
 
-        if (width / Math.max(height, 0.001) > aspectRatio) {
-          width = height * aspectRatio
+        if (width / Math.max(height, 0.001) > cropBoxAspectRatio) {
+          width = height * cropBoxAspectRatio
         } else {
-          height = width / aspectRatio
+          height = width / cropBoxAspectRatio
         }
 
         width = Math.max(width, minWidth)
@@ -212,7 +229,14 @@ export function ImageCropModal({
     }
   }
 
-  const visibleHandles = cropHandles
+  function handleImageLoad(event) {
+    const image = event.currentTarget
+    const nextImageAspectRatio = image.naturalWidth / image.naturalHeight
+    setImageAspectRatio(nextImageAspectRatio)
+    setCropBox(createDefaultCropBox(aspectRatio, nextImageAspectRatio))
+  }
+
+  const visibleHandles = cropBoxAspectRatio ? cropHandles.filter(handle => handle.corner) : cropHandles
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/80 p-3">
@@ -237,7 +261,7 @@ export function ImageCropModal({
             onPointerCancel={stopCrop}
             className="relative mx-auto w-fit max-w-full touch-none"
           >
-            <img ref={cropImageRef} src={sourceImageUrl} alt="Imagem para recortar" className="block max-h-[68vh] max-w-full select-none rounded-xl" />
+            <img ref={cropImageRef} src={sourceImageUrl} alt="Imagem para recortar" onLoad={handleImageLoad} className="block max-h-[68vh] max-w-full select-none rounded-xl" />
             <div className="absolute inset-0 bg-ink/35" />
             <div
               onPointerDown={event => startCrop(event, "move")}

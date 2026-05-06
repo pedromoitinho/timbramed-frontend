@@ -176,7 +176,7 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
         <div ref={editorRef} onPointerMove={handlePointerMove} onPointerUp={stopMove} onPointerCancel={stopMove}
           className="relative mx-auto w-full max-w-[520px] touch-none overflow-hidden rounded-2xl border border-ink/15 bg-paper shadow-sm"
           style={{ aspectRatio: `${paper.width} / ${paper.height}` }}>
-          {hasReport ? <img src={hospital.relatorioImagem} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center p-8 text-center text-sm font-bold text-ink/45">Envie um relatório para ajustar as coordenadas</div>}
+          {hasReport ? <img src={hospital.relatorioImagem} alt="" className="h-full w-full object-fill" /> : <div className="flex h-full items-center justify-center p-8 text-center text-sm font-bold text-ink/45">Envie um relatório para ajustar as coordenadas</div>}
           {hasReport && Object.entries(boxes).map(([key, box]) => (
             <div key={key} onPointerDown={event => startMove(event, key, "move")}
               className={`absolute cursor-move rounded-lg border-2 ${boxColors[key]} p-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-ink shadow-sm`}
@@ -579,7 +579,7 @@ function CalibracaoExameView({ hospital, onSwitchToExame, onCoordinatesSaved }) 
         <div ref={editorRef} onPointerMove={handlePointerMove} onPointerUp={stopMove} onPointerCancel={stopMove}
           className="relative mx-auto w-full max-w-[520px] touch-none overflow-hidden rounded-2xl border border-ink/15 bg-paper shadow-sm"
           style={{ aspectRatio: `${paper.width} / ${paper.height}` }}>
-          {hasExame ? <img src={hospital.exameImagem} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center p-8 text-center text-sm font-bold text-ink/45">Envie um exame para ajustar as coordenadas</div>}
+          {hasExame ? <img src={hospital.exameImagem} alt="" className="h-full w-full object-fill" /> : <div className="flex h-full items-center justify-center p-8 text-center text-sm font-bold text-ink/45">Envie um exame para ajustar as coordenadas</div>}
           {hasExame && Object.entries(boxes).map(([key, box]) => (
             <div key={key} onPointerDown={event => startMove(event, key, "move")}
               className={`absolute cursor-move rounded-lg border-2 ${examBoxColors[key]} p-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-ink shadow-sm`}
