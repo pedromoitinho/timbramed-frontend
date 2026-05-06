@@ -175,6 +175,20 @@ export function updateSignature(hospitalId, payload) {
   })
 }
 
+export function updateExamImage(hospitalId, payload) {
+  return apiRequest(`/hospitals/${hospitalId}/exam`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  })
+}
+
+export function updateExamCoordinates(hospitalId, payload) {
+  return apiRequest(`/hospitals/${hospitalId}/exam-coordinates`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  })
+}
+
 export function listCatalog(hospitalId) {
   return apiRequest(`/hospitals/${hospitalId}/catalog`)
 }
@@ -245,4 +259,19 @@ export function openPdf(blob) {
   }
 
   window.setTimeout(() => window.URL.revokeObjectURL(url), 60000)
+}
+
+export async function generateExamPdf(payload) {
+  let response
+  try {
+    response = await fetch(`${API_URL}/generate-exam-pdf`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(payload)
+    })
+  } catch {
+    throw new Error("Não foi possível conectar à API. Verifique se o backend está rodando.")
+  }
+  if (!response.ok) throw new Error(await readError(response))
+  return response.blob()
 }

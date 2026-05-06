@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { AtendimentoTab } from "../components/AtendimentoTab.jsx"
+import { AtendimentoExameTab } from "../components/AtendimentoExameTab.jsx"
 import { CadastrosTab } from "../components/CadastrosTab.jsx"
 import { CalibracaoTab } from "../components/CalibracaoTab.jsx"
 import { ConcluidosTab } from "../components/ConcluidosTab.jsx"
@@ -8,10 +9,11 @@ import { getHospital, listCatalog, listHospitals, listReports } from "../service
 import { usePrintQueueStore } from "../store/usePrintQueueStore.js"
 
 const tabs = [
-  { id: "atendimento", label: "Atendimento", title: "Atendimento", description: "Preencha paciente, CID e mensagem do relatório." },
+  { id: "atendimento", label: "Atendimento", title: "Atendimento", description: "Preencha paciente, CID e mensagem." },
+  { id: "atendimento-exame", label: "Atendimento - Exame", title: "Atendimento - Exame", description: "Preencha os campos para solicitação de exame." },
   { id: "fila", label: "Fila", title: "Fila de impressão", description: "Selecione pacientes aguardando e imprima em lote." },
   { id: "concluidos", label: "Concluídos", title: "Concluídos", description: "Selecione pacientes já impressos para re-imprimir." },
-  { id: "cadastros", label: "Cadastros", title: "Cadastros", description: "Gerencie CIDs e carimbo." },
+  { id: "cadastros", label: "Cadastros", title: "Cadastros", description: "Gerencie CIDs, carimbo e assinatura." },
   { id: "calibracao", label: "Calibração", title: "Calibração", description: "Ajuste as coordenadas do timbrado por foto." }
 ]
 
@@ -101,10 +103,11 @@ export function DashboardMedico({ user }) {
         </div>
       </section>
       {activeTab === "atendimento" && <AtendimentoTab hospital={hospital} catalog={catalog} />}
+      {activeTab === "atendimento-exame" && <AtendimentoExameTab hospital={hospital} user={user} />}
       {activeTab === "fila" && <FilaTab hospital={hospital} user={user} />}
       {activeTab === "concluidos" && <ConcluidosTab hospital={hospital} user={user} />}
       {activeTab === "cadastros" && <CadastrosTab hospital={hospital} catalog={catalog} reloadCatalog={reloadCatalog} onHospitalSaved={handleHospitalSaved} />}
-      {activeTab === "calibracao" && <CalibracaoTab hospital={hospital} onCoordinatesSaved={handleCoordinatesSaved} />}
+      {activeTab === "calibracao" && <CalibracaoTab hospital={hospital} onCoordinatesSaved={handleCoordinatesSaved} onHospitalSaved={handleHospitalSaved} />}
     </div>
   )
 }
