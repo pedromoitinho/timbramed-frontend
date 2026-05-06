@@ -143,54 +143,6 @@ export function ImageCropModal({
         }
       }
 
-      if (aspectRatio && ["w", "e", "n", "s"].includes(activeCrop.mode)) {
-        const minWidth = 12
-        const minHeight = minWidth / aspectRatio
-        const originalRight = original.x + original.w
-        const originalBottom = original.y + original.h
-        const mode = activeCrop.mode
-
-        if (mode === "w") {
-          const newLeft = clamp(original.x + dx, 0, originalRight - minWidth)
-          let newWidth = originalRight - newLeft
-          let newHeight = newWidth / aspectRatio
-          if (newHeight > 100 - original.y) { newHeight = 100 - original.y; newWidth = newHeight * aspectRatio }
-          if (newHeight < minHeight) { newHeight = minHeight; newWidth = minWidth }
-          const newTop = clamp(original.y + (original.h - newHeight) / 2, 0, 100 - newHeight)
-          return { x: Number(newLeft.toFixed(3)), y: Number(newTop.toFixed(3)), w: Number(newWidth.toFixed(3)), h: Number(newHeight.toFixed(3)) }
-        }
-
-        if (mode === "e") {
-          const newRight = clamp(originalRight + dx, original.x + minWidth, 100)
-          let newWidth = newRight - original.x
-          let newHeight = newWidth / aspectRatio
-          if (newHeight > 100 - original.y) { newHeight = 100 - original.y; newWidth = newHeight * aspectRatio }
-          if (newHeight < minHeight) { newHeight = minHeight; newWidth = minWidth }
-          const newTop = clamp(original.y + (original.h - newHeight) / 2, 0, 100 - newHeight)
-          return { x: Number(original.x.toFixed(3)), y: Number(newTop.toFixed(3)), w: Number(newWidth.toFixed(3)), h: Number(newHeight.toFixed(3)) }
-        }
-
-        if (mode === "n") {
-          const newTop = clamp(original.y + dy, 0, originalBottom - minHeight)
-          let newHeight = originalBottom - newTop
-          let newWidth = newHeight * aspectRatio
-          if (newWidth > 100 - original.x) { newWidth = 100 - original.x; newHeight = newWidth / aspectRatio }
-          if (newWidth < minWidth) { newWidth = minWidth; newHeight = minHeight }
-          const newLeft = clamp(original.x + (original.w - newWidth) / 2, 0, 100 - newWidth)
-          return { x: Number(newLeft.toFixed(3)), y: Number(newTop.toFixed(3)), w: Number(newWidth.toFixed(3)), h: Number(newHeight.toFixed(3)) }
-        }
-
-        if (mode === "s") {
-          const newBottom = clamp(originalBottom + dy, original.y + minHeight, 100)
-          let newHeight = newBottom - original.y
-          let newWidth = newHeight * aspectRatio
-          if (newWidth > 100 - original.x) { newWidth = 100 - original.x; newHeight = newWidth / aspectRatio }
-          if (newWidth < minWidth) { newWidth = minWidth; newHeight = minHeight }
-          const newLeft = clamp(original.x + (original.w - newWidth) / 2, 0, 100 - newWidth)
-          return { x: Number(newLeft.toFixed(3)), y: Number(original.y.toFixed(3)), w: Number(newWidth.toFixed(3)), h: Number(newHeight.toFixed(3)) }
-        }
-      }
-
       const minSize = 12
       const originalRight = original.x + original.w
       const originalBottom = original.y + original.h

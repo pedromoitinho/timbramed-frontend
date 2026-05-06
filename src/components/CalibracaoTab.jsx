@@ -51,15 +51,13 @@ function boxesFromCoordinates(coordinates) {
   const bodyY = cmToYPercent(coordinates.corpoYcm)
   const bodyW = cmToXPercent(Number(coordinates.corpoMaxXcm) - Number(coordinates.corpoXcm))
   const bodyH = cmToYPercent(Number(coordinates.corpoLimiteInferiorYcm) - Number(coordinates.corpoYcm))
-  const stampX = cmToXPercent(coordinates.carimboXcm)
-  const encX = cmToXPercent(coordinates.encerramentoXcm)
 
   return {
     titulo: { x: cmToXPercent(coordinates.tituloXcm), y: cmToYPercent(coordinates.tituloYcm), w: 24, h: 5 },
     corpo: { x: bodyX, y: bodyY, w: bodyW, h: bodyH },
     cid: { x: cmToXPercent(coordinates.cidXcm), y: cmToYPercent(coordinates.cidYcm), w: 28, h: 5 },
-    encerramento: { x: encX, y: cmToYPercent(coordinates.encerramentoYcm), w: 100 - encX, h: 9 },
-    carimbo: { x: stampX, y: cmToYPercent(coordinates.carimboYcm), w: 100 - stampX, h: cmToYPercent(2.4) }
+    encerramento: { x: cmToXPercent(coordinates.encerramentoXcm), y: cmToYPercent(coordinates.encerramentoYcm), w: 30, h: 9 },
+    carimbo: { x: cmToXPercent(coordinates.carimboXcm), y: cmToYPercent(coordinates.carimboYcm), w: 26, h: 7 }
   }
 }
 
@@ -127,12 +125,6 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
         next[active.key] = { ...original, h: clamp(original.h + dy, 4, 100 - original.y) }
       } else {
         next[active.key] = { ...original, x: clamp(original.x + dx, 0, 100 - original.w), y: clamp(original.y + dy, 0, 100 - original.h) }
-      }
-      if (active.key === "carimbo") {
-        next.carimbo = { ...next.carimbo, w: clamp(100 - next.carimbo.x, 12, 100 - next.carimbo.x) }
-      }
-      if (active.key === "encerramento") {
-        next.encerramento = { ...next.encerramento, w: clamp(100 - next.encerramento.x, 12, 100 - next.encerramento.x) }
       }
       return next
     })
