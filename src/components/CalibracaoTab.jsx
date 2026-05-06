@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { ImageCropModal } from "./ImageCropModal.jsx"
 import { updateCoordinates, updateExamCoordinates, updateExamImage, updateReportImage } from "../services/api.js"
+import { usePrintQueueStore } from "../store/usePrintQueueStore.js"
+import { formatDate } from "../utils/reports.js"
 
 const paper = { width: 14.8, height: 21 }
+const reportTitle = "RELATÓRIO"
+const previewFontFamily = '"Source Serif 4", serif'
+const bodyFontSize = 12.5
+const titleFontSize = 13.5
+const lineGapPt = 2
 const boxLabels = {
   titulo: "Titulo",
   corpo: "Corpo do texto",
@@ -52,21 +59,46 @@ function textWidthCm(text, fontSizePt) {
   if (!text) return 0
   const canvas = document.createElement("canvas")
   const ctx = canvas.getContext("2d")
-  ctx.font = `${ptToPx(fontSizePt)}px serif`
+  ctx.font = `${ptToPx(fontSizePt)}px ${previewFontFamily}`
   return ctx.measureText(text).width / 96 * 2.54
 }
 
-function boxesFromCoordinates(coordinates) {
+function normalizeWhitespace(value) {
+  return String(value || "")
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/ +/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+}
+
+function capitalizeName(value) {
+  return String(value || "").trim().replace(/\b\w/g, c => c.toUpperCase())
+}
+
+function buildReportPreview(report) {
+  const patientName = report?.pacienteNome || report?.nomePaciente || "Nome do paciente"
+  const message = report?.mensagemFinal || report?.mensagem || "Texto do relatório usado como referência para visualizar a área do corpo."
+  const dateLabel = formatDate(report?.dataRelatorio || report?.data)
+
+  return {
+    title: reportTitle,
+    bodyText: [`Paciente: ${capitalizeName(patientName)}`, "", normalizeWhitespace(message)].filter(Boolean).join("\n"),
+    cidText: report?.cid ? `CID: ${report.cid}` : "CID:",
+    closingText: `Atenciosamente,\nFSA ${dateLabel}`
+  }
+}
+
+function boxesFromCoordinates(coordinates, preview) {
   const bodyX = cmToXPercent(coordinates.corpoXcm)
   const bodyY = cmToYPercent(coordinates.corpoYcm)
   const bodyW = cmToXPercent(Number(coordinates.corpoMaxXcm) - Number(coordinates.corpoXcm))
   const bodyH = cmToYPercent(Number(coordinates.corpoLimiteInferiorYcm) - Number(coordinates.corpoYcm))
-  const cidW = textWidthCm("CID: M51.1", 12.5)
-  const encLines = ["Atenciosamente,", "FSA 05/05/2026"]
-  const encW = Math.max(...encLines.map(l => textWidthCm(l, 12.5)))
+  const cidW = textWidthCm(preview.cidText, bodyFontSize)
+  const encLines = preview.closingText.split("\n")
+  const encW = Math.max(...encLines.map(l => textWidthCm(l, bodyFontSize)))
 
   return {
-    titulo: { x: cmToXPercent(coordinates.tituloXcm), y: cmToYPercent(coordinates.tituloYcm), w: cmToXPercent(textWidthCm("RELATÓRIO", 13.5)), h: cmToYPercent(0.7) },
+    titulo: { x: cmToXPercent(coordinates.tituloXcm), y: cmToYPercent(coordinates.tituloYcm), w: cmToXPercent(textWidthCm(preview.title, titleFontSize)), h: cmToYPercent(0.7) },
     corpo: { x: bodyX, y: bodyY, w: bodyW, h: bodyH },
     cid: { x: cmToXPercent(coordinates.cidXcm), y: cmToYPercent(coordinates.cidYcm), w: cmToXPercent(cidW), h: cmToYPercent(0.7) },
     encerramento: { x: cmToXPercent(coordinates.encerramentoXcm), y: cmToYPercent(coordinates.encerramentoYcm), w: cmToXPercent(encW), h: cmToYPercent(1) },
@@ -95,13 +127,68 @@ function canvasToBlob(canvas, type, quality) {
   return new Promise(resolve => canvas.toBlob(resolve, type, quality))
 }
 
-function estimateFontSize(box) {
-  const hCm = box.h / 100 * paper.height
-  return Math.min(Math.max(Math.round(hCm * 2.5), 7), 20)
+function previewTextStyle(fontSizePt, useLineGap = false) {
+  const fontSizePx = ptToPx(fontSizePt)
+
+  return {
+    color: "#111111",
+    fontFamily: previewFontFamily,
+    fontSize: `${fontSizePx}px`,
+    letterSpacing: 0,
+    lineHeight: `${fontSizePx * 1.2 + (useLineGap ? ptToPx(lineGapPt) : 0)}px`,
+    textTransform: "none"
+  }
+}
+
+function measureWrappedHeightPx(text, fontSizePt, widthPx) {
+  if (!text || widthPx <= 0) return 0
+  const canvas = document.createElement("canvas")
+  const ctx = canvas.getContext("2d")
+  ctx.font = `${ptToPx(fontSizePt)}px ${previewFontFamily}`
+  const lineHeight = ptToPx(fontSizePt) * 1.2 + ptToPx(lineGapPt)
+  let lines = 0
+
+  String(text).split("\n").forEach(paragraph => {
+    const words = paragraph.trim().split(/\s+/).filter(Boolean)
+
+    if (words.length === 0) {
+      lines += 1
+      return
+    }
+
+    let line = ""
+    words.forEach(word => {
+      const nextLine = line ? `${line} ${word}` : word
+      if (!line || ctx.measureText(nextLine).width <= widthPx) {
+        line = nextLine
+      } else {
+        lines += 1
+        line = word
+      }
+    })
+    if (line) lines += 1
+  })
+
+  return lines * lineHeight
+}
+
+function computeBodyPreviewFontSize(text, box) {
+  const widthPx = (box.w / 100 * paper.width) / 2.54 * 96
+  const heightPx = (box.h / 100 * paper.height) / 2.54 * 96
+
+  for (let size = 20; size >= 7; size -= 0.5) {
+    if (measureWrappedHeightPx(text, size, widthPx) <= heightPx) {
+      return size
+    }
+  }
+
+  return 7
 }
 
 function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
-  const [boxes, setBoxes] = useState(() => boxesFromCoordinates(hospital.coordenadas))
+  const previewReport = usePrintQueueStore(state => state.fila[0] || state.concluidos[0])
+  const reportPreview = useMemo(() => buildReportPreview(previewReport), [previewReport])
+  const [boxes, setBoxes] = useState(() => boxesFromCoordinates(hospital.coordenadas, reportPreview))
   const [active, setActive] = useState(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState("")
@@ -110,10 +197,11 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
   const hasReport = !!hospital.relatorioImagem
 
   const currentCoordinates = useMemo(() => coordinatesFromBoxes(boxes), [boxes])
+  const bodyPreviewFontSize = useMemo(() => computeBodyPreviewFontSize(reportPreview.bodyText, boxes.corpo), [boxes.corpo, reportPreview.bodyText])
 
   useEffect(() => {
-    setBoxes(boxesFromCoordinates(hospital.coordenadas))
-  }, [hospital.coordenadas])
+    setBoxes(boxesFromCoordinates(hospital.coordenadas, reportPreview))
+  }, [hospital.coordenadas, reportPreview])
 
   function startMove(event, key, mode) {
     event.preventDefault()
@@ -155,6 +243,30 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
     finally { setSaving(false) }
   }
 
+  function renderReportBoxContent(key) {
+    if (key === "carimbo" && hospital.carimboImagem) {
+      return <img src={hospital.carimboImagem} alt="" className="pointer-events-none h-full w-full object-contain contrast-150 brightness-90 saturate-115" />
+    }
+
+    if (key === "titulo") {
+      return <div className="pointer-events-none h-full w-full overflow-hidden whitespace-nowrap text-left" style={previewTextStyle(titleFontSize)}>{reportPreview.title}</div>
+    }
+
+    if (key === "corpo") {
+      return <div className="pointer-events-none h-full w-full overflow-hidden whitespace-pre-line text-left" style={{ ...previewTextStyle(bodyPreviewFontSize, true), textAlign: "justify" }}>{reportPreview.bodyText}</div>
+    }
+
+    if (key === "cid") {
+      return <div className="pointer-events-none h-full w-full overflow-hidden whitespace-nowrap text-left" style={previewTextStyle(bodyFontSize)}>{reportPreview.cidText}</div>
+    }
+
+    if (key === "encerramento") {
+      return <div className="pointer-events-none h-full w-full overflow-hidden whitespace-pre-line text-left" style={previewTextStyle(bodyFontSize, true)}>{reportPreview.closingText}</div>
+    }
+
+    return <span className="pointer-events-none p-1 text-[10px] font-extrabold uppercase tracking-[0.12em]">{boxLabels[key]}</span>
+  }
+
   return (
     <div className="space-y-5">
       <div>
@@ -179,11 +291,9 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
           {hasReport ? <img src={hospital.relatorioImagem} alt="" className="h-full w-full object-fill" /> : <div className="flex h-full items-center justify-center p-8 text-center text-sm font-bold text-ink/45">Envie um relatório para ajustar as coordenadas</div>}
           {hasReport && Object.entries(boxes).map(([key, box]) => (
             <div key={key} onPointerDown={event => startMove(event, key, "move")}
-              className={`absolute cursor-move rounded-lg border-2 ${boxColors[key]} p-1 text-[10px] font-extrabold uppercase tracking-[0.12em] text-ink shadow-sm`}
+              className={`absolute cursor-move rounded-lg border-2 ${boxColors[key]} text-ink shadow-sm`}
               style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}>
-              {key === "carimbo" && hospital.carimboImagem ? <img src={hospital.carimboImagem} alt="" className="h-full w-full object-contain contrast-150 brightness-90 saturate-115" />
-                : key === "corpo" ? <span className="text-[10px]">{boxLabels[key]} ~{estimateFontSize(box)}pt</span>
-                : boxLabels[key]}
+              {renderReportBoxContent(key)}
               {key === "corpo" && (
                 <>
                   <div onPointerDown={event => startMove(event, key, "resize-w")}
