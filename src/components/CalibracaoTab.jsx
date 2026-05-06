@@ -46,17 +46,30 @@ function percentToYCm(value) {
   return Number((-value / 100 * paper.height).toFixed(2))
 }
 
+function ptToPx(pt) { return pt * 4 / 3 }
+
+function textWidthCm(text, fontSizePt) {
+  if (!text) return 0
+  const canvas = document.createElement("canvas")
+  const ctx = canvas.getContext("2d")
+  ctx.font = `${ptToPx(fontSizePt)}px serif`
+  return ctx.measureText(text).width / 96 * 2.54
+}
+
 function boxesFromCoordinates(coordinates) {
   const bodyX = cmToXPercent(coordinates.corpoXcm)
   const bodyY = cmToYPercent(coordinates.corpoYcm)
   const bodyW = cmToXPercent(Number(coordinates.corpoMaxXcm) - Number(coordinates.corpoXcm))
   const bodyH = cmToYPercent(Number(coordinates.corpoLimiteInferiorYcm) - Number(coordinates.corpoYcm))
+  const cidW = textWidthCm("CID: M51.1", 12.5)
+  const encLines = ["Atenciosamente,", "FSA 05/05/2026"]
+  const encW = Math.max(...encLines.map(l => textWidthCm(l, 12.5)))
 
   return {
-    titulo: { x: cmToXPercent(coordinates.tituloXcm), y: cmToYPercent(coordinates.tituloYcm), w: cmToXPercent(4.5), h: cmToYPercent(0.8) },
+    titulo: { x: cmToXPercent(coordinates.tituloXcm), y: cmToYPercent(coordinates.tituloYcm), w: cmToXPercent(textWidthCm("RELATÓRIO", 13.5)), h: cmToYPercent(0.7) },
     corpo: { x: bodyX, y: bodyY, w: bodyW, h: bodyH },
-    cid: { x: cmToXPercent(coordinates.cidXcm), y: cmToYPercent(coordinates.cidYcm), w: cmToXPercent(5.5), h: cmToYPercent(0.8) },
-    encerramento: { x: cmToXPercent(coordinates.encerramentoXcm), y: cmToYPercent(coordinates.encerramentoYcm), w: cmToXPercent(8.5), h: cmToYPercent(1) },
+    cid: { x: cmToXPercent(coordinates.cidXcm), y: cmToYPercent(coordinates.cidYcm), w: cmToXPercent(cidW), h: cmToYPercent(0.7) },
+    encerramento: { x: cmToXPercent(coordinates.encerramentoXcm), y: cmToYPercent(coordinates.encerramentoYcm), w: cmToXPercent(encW), h: cmToYPercent(1) },
     carimbo: { x: cmToXPercent(coordinates.carimboXcm), y: cmToYPercent(coordinates.carimboYcm), w: cmToXPercent(paper.width - Number(coordinates.carimboXcm)), h: cmToYPercent(2.4) }
   }
 }
