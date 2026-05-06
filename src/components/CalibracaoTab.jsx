@@ -53,11 +53,11 @@ function boxesFromCoordinates(coordinates) {
   const bodyH = cmToYPercent(Number(coordinates.corpoLimiteInferiorYcm) - Number(coordinates.corpoYcm))
 
   return {
-    titulo: { x: cmToXPercent(coordinates.tituloXcm), y: cmToYPercent(coordinates.tituloYcm), w: 24, h: 5 },
+    titulo: { x: cmToXPercent(coordinates.tituloXcm), y: cmToYPercent(coordinates.tituloYcm), w: cmToXPercent(paper.width - Number(coordinates.tituloXcm)), h: cmToYPercent(1) },
     corpo: { x: bodyX, y: bodyY, w: bodyW, h: bodyH },
-    cid: { x: cmToXPercent(coordinates.cidXcm), y: cmToYPercent(coordinates.cidYcm), w: 28, h: 5 },
-    encerramento: { x: cmToXPercent(coordinates.encerramentoXcm), y: cmToYPercent(coordinates.encerramentoYcm), w: 30, h: 9 },
-    carimbo: { x: cmToXPercent(coordinates.carimboXcm), y: cmToYPercent(coordinates.carimboYcm), w: 26, h: 7 }
+    cid: { x: cmToXPercent(coordinates.cidXcm), y: cmToYPercent(coordinates.cidYcm), w: cmToXPercent(paper.width - Number(coordinates.cidXcm)), h: cmToYPercent(1) },
+    encerramento: { x: cmToXPercent(coordinates.encerramentoXcm), y: cmToYPercent(coordinates.encerramentoYcm), w: cmToXPercent(paper.width - Number(coordinates.encerramentoXcm)), h: cmToYPercent(2) },
+    carimbo: { x: cmToXPercent(coordinates.carimboXcm), y: cmToYPercent(coordinates.carimboYcm), w: cmToXPercent(paper.width - Number(coordinates.carimboXcm)), h: cmToYPercent(2.4) }
   }
 }
 
