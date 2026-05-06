@@ -127,19 +127,6 @@ function canvasToBlob(canvas, type, quality) {
   return new Promise(resolve => canvas.toBlob(resolve, type, quality))
 }
 
-function previewTextStyle(fontSizePt, useLineGap = false) {
-  const fontSizePx = ptToPx(fontSizePt)
-
-  return {
-    color: "#111111",
-    fontFamily: previewFontFamily,
-    fontSize: `${fontSizePx}px`,
-    letterSpacing: 0,
-    lineHeight: `${fontSizePx * 1.2 + (useLineGap ? ptToPx(lineGapPt) : 0)}px`,
-    textTransform: "none"
-  }
-}
-
 function measureWrappedHeightPx(text, fontSizePt, widthPx) {
   if (!text || widthPx <= 0) return 0
   const canvas = document.createElement("canvas")
@@ -172,6 +159,39 @@ function measureWrappedHeightPx(text, fontSizePt, widthPx) {
   return lines * lineHeight
 }
 
+function wrapTextLines(text, fontSizePt, widthPx) {
+  if (!text || widthPx <= 0) return []
+  const canvas = document.createElement("canvas")
+  const ctx = canvas.getContext("2d")
+  ctx.font = `${ptToPx(fontSizePt)}px ${previewFontFamily}`
+  const lines = []
+
+  String(text).split("\n").forEach(paragraph => {
+    const words = paragraph.trim().split(/\s+/).filter(Boolean)
+
+    if (words.length === 0) {
+      lines.push({ blank: true, widthPercent: 0 })
+      return
+    }
+
+    let line = ""
+    words.forEach(word => {
+      const nextLine = line ? `${line} ${word}` : word
+      if (!line || ctx.measureText(nextLine).width <= widthPx) {
+        line = nextLine
+      } else {
+        lines.push({ blank: false, widthPercent: clamp(ctx.measureText(line).width / widthPx * 100, 12, 100) })
+        line = word
+      }
+    })
+    if (line) {
+      lines.push({ blank: false, widthPercent: clamp(ctx.measureText(line).width / widthPx * 100, 12, 100) })
+    }
+  })
+
+  return lines
+}
+
 function computeBodyPreviewFontSize(text, box) {
   const widthPx = (box.w / 100 * paper.width) / 2.54 * 96
   const heightPx = (box.h / 100 * paper.height) / 2.54 * 96
@@ -183,6 +203,22 @@ function computeBodyPreviewFontSize(text, box) {
   }
 
   return 7
+}
+
+function computeBodyPreviewMetrics(text, box) {
+  const widthPx = (box.w / 100 * paper.width) / 2.54 * 96
+  const paperHeightPx = paper.height / 2.54 * 96
+  const fontSize = computeBodyPreviewFontSize(text, box)
+  const lineHeightPx = ptToPx(fontSize) * 1.2 + ptToPx(lineGapPt)
+  const lines = wrapTextLines(text, fontSize, widthPx)
+  const heightPercent = Math.min(box.h, lines.length * lineHeightPx / paperHeightPx * 100)
+
+  return {
+    fontSize,
+    lines,
+    heightPercent: Math.max(heightPercent, cmToYPercent(0.7)),
+    lineHeightPercent: lineHeightPx / Math.max(lines.length * lineHeightPx, 1) * 100
+  }
 }
 
 function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
@@ -197,17 +233,17 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
   const hasReport = !!hospital.relatorioImagem
 
   const currentCoordinates = useMemo(() => coordinatesFromBoxes(boxes), [boxes])
-  const bodyPreviewFontSize = useMemo(() => computeBodyPreviewFontSize(reportPreview.bodyText, boxes.corpo), [boxes.corpo, reportPreview.bodyText])
+  const bodyPreviewMetrics = useMemo(() => computeBodyPreviewMetrics(reportPreview.bodyText, boxes.corpo), [boxes.corpo, reportPreview.bodyText])
 
   useEffect(() => {
     setBoxes(boxesFromCoordinates(hospital.coordenadas, reportPreview))
   }, [hospital.coordenadas, reportPreview])
 
-  function startMove(event, key, mode) {
+  function startMove(event, key, mode, initialBox = boxes[key]) {
     event.preventDefault()
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
-    setActive({ key, mode, startX: event.clientX, startY: event.clientY, initial: boxes[key] })
+    setActive({ key, mode, startX: event.clientX, startY: event.clientY, initial: initialBox })
   }
 
   function handlePointerMove(event) {
@@ -249,22 +285,53 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
     }
 
     if (key === "titulo") {
-      return <div className="pointer-events-none h-full w-full overflow-hidden whitespace-nowrap text-left" style={previewTextStyle(titleFontSize)}>{reportPreview.title}</div>
+      return <span className="pointer-events-none rounded-sm bg-paper/80 px-1 text-[10px] font-extrabold uppercase tracking-[0.12em]">{boxLabels[key]}</span>
     }
 
     if (key === "corpo") {
-      return <div className="pointer-events-none h-full w-full overflow-hidden whitespace-pre-line text-left" style={{ ...previewTextStyle(bodyPreviewFontSize, true), textAlign: "justify" }}>{reportPreview.bodyText}</div>
+      return (
+        <div className="pointer-events-none relative h-full w-full overflow-hidden">
+          <span className="absolute left-1 top-1 rounded-sm bg-paper/80 px-1 text-[10px] font-extrabold uppercase tracking-[0.12em]">{boxLabels[key]} ~{bodyPreviewMetrics.fontSize}pt</span>
+          {bodyPreviewMetrics.lines.map((line, index) => !line.blank && (
+            <span
+              key={index}
+              className="absolute left-1 block h-[2px] rounded-full bg-pen/65"
+              style={{
+                top: `${index * bodyPreviewMetrics.lineHeightPercent + bodyPreviewMetrics.lineHeightPercent * 0.72}%`,
+                width: `calc(${line.widthPercent}% - 0.5rem)`
+              }}
+            />
+          ))}
+        </div>
+      )
     }
 
     if (key === "cid") {
-      return <div className="pointer-events-none h-full w-full overflow-hidden whitespace-nowrap text-left" style={previewTextStyle(bodyFontSize)}>{reportPreview.cidText}</div>
+      return <span className="pointer-events-none rounded-sm bg-paper/80 px-1 text-[10px] font-extrabold uppercase tracking-[0.12em]">{boxLabels[key]}</span>
     }
 
     if (key === "encerramento") {
-      return <div className="pointer-events-none h-full w-full overflow-hidden whitespace-pre-line text-left" style={previewTextStyle(bodyFontSize, true)}>{reportPreview.closingText}</div>
+      return (
+        <div className="pointer-events-none relative h-full w-full overflow-hidden">
+          <span className="absolute left-1 top-1 rounded-sm bg-paper/80 px-1 text-[10px] font-extrabold uppercase tracking-[0.12em]">{boxLabels[key]}</span>
+          <span className="absolute left-1 top-[48%] block h-[2px] w-[85%] rounded-full bg-ink/50" />
+          <span className="absolute left-1 top-[72%] block h-[2px] w-[65%] rounded-full bg-ink/50" />
+        </div>
+      )
     }
 
     return <span className="pointer-events-none p-1 text-[10px] font-extrabold uppercase tracking-[0.12em]">{boxLabels[key]}</span>
+  }
+
+  function displayBoxForKey(key, box) {
+    if (key !== "corpo") {
+      return box
+    }
+
+    return {
+      ...box,
+      h: Math.min(box.h, bodyPreviewMetrics.heightPercent)
+    }
   }
 
   return (
@@ -289,25 +356,29 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
           className="relative mx-auto w-full max-w-[520px] touch-none overflow-hidden rounded-2xl border border-ink/15 bg-paper shadow-sm"
           style={{ aspectRatio: `${paper.width} / ${paper.height}` }}>
           {hasReport ? <img src={hospital.relatorioImagem} alt="" className="h-full w-full object-fill" /> : <div className="flex h-full items-center justify-center p-8 text-center text-sm font-bold text-ink/45">Envie um relatório para ajustar as coordenadas</div>}
-          {hasReport && Object.entries(boxes).map(([key, box]) => (
-            <div key={key} onPointerDown={event => startMove(event, key, "move")}
-              className={`absolute cursor-move rounded-lg border-2 ${boxColors[key]} text-ink shadow-sm`}
-              style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}>
-              {renderReportBoxContent(key)}
-              {key === "corpo" && (
-                <>
-                  <div onPointerDown={event => startMove(event, key, "resize-w")}
-                    className="absolute right-0 top-1/2 h-8 w-3 -translate-y-1/2 translate-x-1/2 cursor-ew-resize rounded-full bg-ink/70 text-[0px] leading-none text-paper shadow-sm" />
-                  <div onPointerDown={event => startMove(event, key, "resize-h")}
-                    className="absolute bottom-0 left-1/2 h-3 w-8 -translate-x-1/2 translate-y-1/2 cursor-ns-resize rounded-full bg-ink/70 text-[0px] leading-none text-paper shadow-sm" />
-                  <button type="button" onPointerDown={event => startMove(event, key, "resize")}
-                    className="absolute bottom-0 right-0 h-5 w-5 translate-x-1/2 translate-y-1/2 rounded-full bg-ink text-[0px] leading-none text-paper shadow-sm">
-                    redim
-                  </button>
-                </>
-              )}
-            </div>
-          ))}
+          {hasReport && Object.entries(boxes).map(([key, box]) => {
+            const displayBox = displayBoxForKey(key, box)
+
+            return (
+              <div key={key} onPointerDown={event => startMove(event, key, "move", displayBox)}
+                className={`absolute cursor-move rounded-lg border-2 ${boxColors[key]} text-ink shadow-sm`}
+                style={{ left: `${displayBox.x}%`, top: `${displayBox.y}%`, width: `${displayBox.w}%`, height: `${displayBox.h}%` }}>
+                {renderReportBoxContent(key)}
+                {key === "corpo" && (
+                  <>
+                    <div onPointerDown={event => startMove(event, key, "resize-w", displayBox)}
+                      className="absolute right-0 top-1/2 h-8 w-3 -translate-y-1/2 translate-x-1/2 cursor-ew-resize rounded-full bg-ink/70 text-[0px] leading-none text-paper shadow-sm" />
+                    <div onPointerDown={event => startMove(event, key, "resize-h", displayBox)}
+                      className="absolute bottom-0 left-1/2 h-3 w-8 -translate-x-1/2 translate-y-1/2 cursor-ns-resize rounded-full bg-ink/70 text-[0px] leading-none text-paper shadow-sm" />
+                    <button type="button" onPointerDown={event => startMove(event, key, "resize", displayBox)}
+                      className="absolute bottom-0 right-0 h-5 w-5 translate-x-1/2 translate-y-1/2 rounded-full bg-ink text-[0px] leading-none text-paper shadow-sm">
+                      redim
+                    </button>
+                  </>
+                )}
+              </div>
+            )
+          })}
         </div>
         <aside className="rounded-2xl border border-ink/10 bg-paper/45 p-4">
           <h3 className="font-display text-2xl text-ink">Coordenadas</h3>
