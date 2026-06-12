@@ -2,26 +2,24 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { ImageCropModal } from "./ImageCropModal.jsx"
 import { updateCoordinates, updateExamCoordinates, updateExamImage, updateReportImage } from "../services/api.js"
 import { usePrintQueueStore } from "../store/usePrintQueueStore.js"
-import { formatDate } from "../utils/reports.js"
 
 const paper = { width: 14.8, height: 21 }
 const reportTitle = "RELATÓRIO"
 const previewFontFamily = '"Source Serif 4", serif'
-const bodyFontSize = 12.5
+const minBodyFontSizePx = 8
+const maxBodyFontSizePx = 30
 const titleFontSize = 13.5
 const lineGapPt = 2
 const boxLabels = {
   titulo: "Titulo",
   corpo: "Corpo do texto",
   cid: "CID",
-  encerramento: "Encerramento",
   carimbo: "Carimbo médico"
 }
 const boxColors = {
   titulo: "border-clay bg-clay/15",
   corpo: "border-pen bg-pen/10",
   cid: "border-moss bg-moss/15",
-  encerramento: "border-ink bg-ink/10",
   carimbo: "border-clay bg-clay/15"
 }
 const imageAccept = "image" + "/" + "*"
@@ -55,19 +53,18 @@ function percentToYCm(value) {
 
 function ptToPx(pt) { return pt * 4 / 3 }
 
-function textWidthCm(text, fontSizePt) {
+function textWidthCm(text, fontSizePx) {
   if (!text) return 0
   const canvas = document.createElement("canvas")
   const ctx = canvas.getContext("2d")
-  ctx.font = `${ptToPx(fontSizePt)}px ${previewFontFamily}`
+  ctx.font = `${fontSizePx}px ${previewFontFamily}`
   return ctx.measureText(text).width / 96 * 2.54
 }
 
 function normalizeWhitespace(value) {
   return String(value || "")
-    .replace(/[^\S\n]+/g, " ")
+    .replace(/[\r\n]+/g, " ")
     .replace(/ +/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
     .trim()
 }
 
@@ -76,15 +73,12 @@ function capitalizeName(value) {
 }
 
 function buildReportPreview(report) {
-  const patientName = report?.pacienteNome || report?.nomePaciente || "Nome do paciente"
-  const message = report?.mensagemFinal || report?.mensagem || "Texto do relatório usado como referência para visualizar a área do corpo."
-  const dateLabel = formatDate(report?.dataRelatorio || report?.data)
+  const message = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor. Cras elementum ultrices diam."
 
   return {
     title: reportTitle,
-    bodyText: [`Paciente: ${capitalizeName(patientName)}`, "", normalizeWhitespace(message)].filter(Boolean).join("\n"),
-    cidText: report?.cid ? `CID: ${report.cid}` : "CID:",
-    closingText: `Atenciosamente,\nFSA ${dateLabel}`
+    bodyText: normalizeWhitespace(message),
+    cidText: "CID: M51.1, G56.0, M79.7",
   }
 }
 
@@ -93,16 +87,12 @@ function boxesFromCoordinates(coordinates, preview) {
   const bodyY = cmToYPercent(coordinates.corpoYcm)
   const bodyW = cmToXPercent(Number(coordinates.corpoMaxXcm) - Number(coordinates.corpoXcm))
   const bodyH = cmToYPercent(Number(coordinates.corpoLimiteInferiorYcm) - Number(coordinates.corpoYcm))
-  const cidW = textWidthCm(preview.cidText, bodyFontSize)
-  const encLines = preview.closingText.split("\n")
-  const encW = Math.max(...encLines.map(l => textWidthCm(l, bodyFontSize)))
-
+  const cidW = Math.max(textWidthCm(preview.cidText, ptToPx(10.5)) + 0.35, 5.2)
   return {
-    titulo: { x: cmToXPercent(coordinates.tituloXcm), y: cmToYPercent(coordinates.tituloYcm), w: cmToXPercent(textWidthCm(preview.title, titleFontSize)), h: cmToYPercent(0.7) },
+    titulo: { x: cmToXPercent(coordinates.tituloXcm), y: cmToYPercent(coordinates.tituloYcm), w: cmToXPercent(textWidthCm(preview.title, ptToPx(titleFontSize))), h: cmToYPercent(0.7) },
     corpo: { x: bodyX, y: bodyY, w: bodyW, h: bodyH },
-    cid: { x: cmToXPercent(coordinates.cidXcm), y: cmToYPercent(coordinates.cidYcm), w: cmToXPercent(cidW), h: cmToYPercent(0.7) },
-    encerramento: { x: cmToXPercent(coordinates.encerramentoXcm), y: cmToYPercent(coordinates.encerramentoYcm), w: cmToXPercent(encW), h: cmToYPercent(1) },
-    carimbo: { x: cmToXPercent(coordinates.carimboXcm), y: cmToYPercent(coordinates.carimboYcm), w: cmToXPercent(paper.width - Number(coordinates.carimboXcm)), h: cmToYPercent(2.4) }
+    cid: { x: cmToXPercent(coordinates.cidXcm), y: cmToYPercent(coordinates.cidYcm), w: cmToXPercent(cidW), h: cmToYPercent(0.95) },
+    carimbo: { x: cmToXPercent(coordinates.carimboXcm), y: cmToYPercent(coordinates.carimboYcm), w: cmToXPercent(4.2), h: cmToYPercent(1.85) }
   }
 }
 
@@ -116,8 +106,6 @@ function coordinatesFromBoxes(boxes) {
     corpoLimiteInferiorYcm: percentToYCm(boxes.corpo.y + boxes.corpo.h),
     cidXcm: percentToXCm(boxes.cid.x),
     cidYcm: percentToYCm(boxes.cid.y),
-    encerramentoXcm: percentToXCm(boxes.encerramento.x),
-    encerramentoYcm: percentToYCm(boxes.encerramento.y),
     carimboXcm: percentToXCm(boxes.carimbo.x),
     carimboYcm: percentToYCm(boxes.carimbo.y)
   }
@@ -127,43 +115,11 @@ function canvasToBlob(canvas, type, quality) {
   return new Promise(resolve => canvas.toBlob(resolve, type, quality))
 }
 
-function measureWrappedHeightPx(text, fontSizePt, widthPx) {
-  if (!text || widthPx <= 0) return 0
-  const canvas = document.createElement("canvas")
-  const ctx = canvas.getContext("2d")
-  ctx.font = `${ptToPx(fontSizePt)}px ${previewFontFamily}`
-  const lineHeight = ptToPx(fontSizePt) * 1.2 + ptToPx(lineGapPt)
-  let lines = 0
-
-  String(text).split("\n").forEach(paragraph => {
-    const words = paragraph.trim().split(/\s+/).filter(Boolean)
-
-    if (words.length === 0) {
-      lines += 1
-      return
-    }
-
-    let line = ""
-    words.forEach(word => {
-      const nextLine = line ? `${line} ${word}` : word
-      if (!line || ctx.measureText(nextLine).width <= widthPx) {
-        line = nextLine
-      } else {
-        lines += 1
-        line = word
-      }
-    })
-    if (line) lines += 1
-  })
-
-  return lines * lineHeight
-}
-
-function wrapTextLines(text, fontSizePt, widthPx) {
+function wrapTextLines(text, fontSizePx, widthPx) {
   if (!text || widthPx <= 0) return []
   const canvas = document.createElement("canvas")
   const ctx = canvas.getContext("2d")
-  ctx.font = `${ptToPx(fontSizePt)}px ${previewFontFamily}`
+  ctx.font = `${fontSizePx}px ${previewFontFamily}`
   const lines = []
 
   String(text).split("\n").forEach(paragraph => {
@@ -192,29 +148,34 @@ function wrapTextLines(text, fontSizePt, widthPx) {
   return lines
 }
 
-function computeBodyPreviewFontSize(text, box) {
+function measureWrappedHeightPx(text, fontSizePx, widthPx) {
+  const lines = wrapTextLines(text, fontSizePx, widthPx)
+  return lines.length * (fontSizePx * 1.2 + ptToPx(lineGapPt))
+}
+
+function computeAutoBodyFontSizePx(text, box) {
   const widthPx = (box.w / 100 * paper.width) / 2.54 * 96
   const heightPx = (box.h / 100 * paper.height) / 2.54 * 96
 
-  for (let size = 20; size >= 7; size -= 0.5) {
+  for (let size = maxBodyFontSizePx; size >= minBodyFontSizePx; size -= 0.5) {
     if (measureWrappedHeightPx(text, size, widthPx) <= heightPx) {
       return size
     }
   }
 
-  return 7
+  return minBodyFontSizePx
 }
 
 function computeBodyPreviewMetrics(text, box) {
   const widthPx = (box.w / 100 * paper.width) / 2.54 * 96
   const paperHeightPx = paper.height / 2.54 * 96
-  const fontSize = computeBodyPreviewFontSize(text, box)
-  const lineHeightPx = ptToPx(fontSize) * 1.2 + ptToPx(lineGapPt)
-  const lines = wrapTextLines(text, fontSize, widthPx)
+  const fontSizePx = computeAutoBodyFontSizePx(text, box)
+  const lineHeightPx = fontSizePx * 1.2 + ptToPx(lineGapPt)
+  const lines = wrapTextLines(text, fontSizePx, widthPx)
   const heightPercent = Math.min(box.h, lines.length * lineHeightPx / paperHeightPx * 100)
 
   return {
-    fontSize,
+    fontSizePx,
     lines,
     heightPercent: Math.max(heightPercent, cmToYPercent(0.7)),
     lineHeightPercent: lineHeightPx / Math.max(lines.length * lineHeightPx, 1) * 100
@@ -232,8 +193,8 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
   const editorRef = useRef(null)
   const hasReport = !!hospital.relatorioImagem
 
-  const currentCoordinates = useMemo(() => coordinatesFromBoxes(boxes), [boxes])
   const bodyPreviewMetrics = useMemo(() => computeBodyPreviewMetrics(reportPreview.bodyText, boxes.corpo), [boxes.corpo, reportPreview.bodyText])
+  const currentCoordinates = useMemo(() => coordinatesFromBoxes(boxes), [boxes])
 
   useEffect(() => {
     setBoxes(boxesFromCoordinates(hospital.coordenadas, reportPreview))
@@ -243,7 +204,13 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
     event.preventDefault()
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
-    setActive({ key, mode, startX: event.clientX, startY: event.clientY, initial: initialBox })
+    setActive({
+      key,
+      mode,
+      startX: event.clientX,
+      startY: event.clientY,
+      initial: initialBox
+    })
   }
 
   function handlePointerMove(event) {
@@ -263,6 +230,7 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
       } else {
         next[active.key] = { ...original, x: clamp(original.x + dx, 0, 100 - original.w), y: clamp(original.y + dy, 0, 100 - original.h) }
       }
+
       return next
     })
   }
@@ -290,48 +258,40 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
 
     if (key === "corpo") {
       return (
-        <div className="pointer-events-none relative h-full w-full overflow-hidden">
-          <span className="absolute left-1 top-1 rounded-sm bg-paper/80 px-1 text-[10px] font-extrabold uppercase tracking-[0.12em]">{boxLabels[key]} ~{bodyPreviewMetrics.fontSize}pt</span>
-          {bodyPreviewMetrics.lines.map((line, index) => !line.blank && (
-            <span
-              key={index}
-              className="absolute left-1 block h-[2px] rounded-full bg-pen/65"
-              style={{
-                top: `${index * bodyPreviewMetrics.lineHeightPercent + bodyPreviewMetrics.lineHeightPercent * 0.72}%`,
-                width: `calc(${line.widthPercent}% - 0.5rem)`
-              }}
-            />
-          ))}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div
+            className="leading-[1.2] text-ink/80"
+            style={{
+              fontFamily: previewFontFamily,
+              fontSize: `${bodyPreviewMetrics.fontSizePx}px`,
+              textAlign: "justify",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              hyphens: "auto"
+            }}
+          >
+            {reportPreview.bodyText}
+          </div>
         </div>
       )
     }
 
     if (key === "cid") {
-      return <span className="pointer-events-none rounded-sm bg-paper/80 px-1 text-[10px] font-extrabold uppercase tracking-[0.12em]">{boxLabels[key]}</span>
-    }
-
-    if (key === "encerramento") {
       return (
-        <div className="pointer-events-none relative h-full w-full overflow-hidden">
-          <span className="absolute left-1 top-1 rounded-sm bg-paper/80 px-1 text-[10px] font-extrabold uppercase tracking-[0.12em]">{boxLabels[key]}</span>
-          <span className="absolute left-1 top-[48%] block h-[2px] w-[85%] rounded-full bg-ink/50" />
-          <span className="absolute left-1 top-[72%] block h-[2px] w-[65%] rounded-full bg-ink/50" />
-        </div>
+        <span
+          className="pointer-events-none absolute left-0 top-0 inline-block rounded-sm bg-paper/80 px-1 py-0.5 font-extrabold tracking-[0.12em] text-ink"
+            style={{
+              fontFamily: previewFontFamily,
+              fontSize: `${ptToPx(10.5)}px`,
+              whiteSpace: "nowrap"
+            }}
+        >
+          {reportPreview.cidText}
+        </span>
       )
     }
 
     return <span className="pointer-events-none p-1 text-[10px] font-extrabold uppercase tracking-[0.12em]">{boxLabels[key]}</span>
-  }
-
-  function displayBoxForKey(key, box) {
-    if (key !== "corpo") {
-      return box
-    }
-
-    return {
-      ...box,
-      h: Math.min(box.h, bodyPreviewMetrics.heightPercent)
-    }
   }
 
   return (
@@ -357,20 +317,18 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
           style={{ aspectRatio: `${paper.width} / ${paper.height}` }}>
           {hasReport ? <img src={hospital.relatorioImagem} alt="" className="h-full w-full object-fill" /> : <div className="flex h-full items-center justify-center p-8 text-center text-sm font-bold text-ink/45">Envie um relatório para ajustar as coordenadas</div>}
           {hasReport && Object.entries(boxes).map(([key, box]) => {
-            const displayBox = displayBoxForKey(key, box)
-
             return (
-              <div key={key} onPointerDown={event => startMove(event, key, "move", displayBox)}
+              <div key={key} onPointerDown={event => startMove(event, key, "move", box)}
                 className={`absolute cursor-move rounded-lg border-2 ${boxColors[key]} text-ink shadow-sm`}
-                style={{ left: `${displayBox.x}%`, top: `${displayBox.y}%`, width: `${displayBox.w}%`, height: `${displayBox.h}%` }}>
+                style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}>
                 {renderReportBoxContent(key)}
                 {key === "corpo" && (
                   <>
-                    <div onPointerDown={event => startMove(event, key, "resize-w", displayBox)}
+                    <div onPointerDown={event => startMove(event, key, "resize-w", box)}
                       className="absolute right-0 top-1/2 h-8 w-3 -translate-y-1/2 translate-x-1/2 cursor-ew-resize rounded-full bg-ink/70 text-[0px] leading-none text-paper shadow-sm" />
-                    <div onPointerDown={event => startMove(event, key, "resize-h", displayBox)}
+                    <div onPointerDown={event => startMove(event, key, "resize-h", box)}
                       className="absolute bottom-0 left-1/2 h-3 w-8 -translate-x-1/2 translate-y-1/2 cursor-ns-resize rounded-full bg-ink/70 text-[0px] leading-none text-paper shadow-sm" />
-                    <button type="button" onPointerDown={event => startMove(event, key, "resize", displayBox)}
+                    <button type="button" onPointerDown={event => startMove(event, key, "resize", box)}
                       className="absolute bottom-0 right-0 h-5 w-5 translate-x-1/2 translate-y-1/2 rounded-full bg-ink text-[0px] leading-none text-paper shadow-sm">
                       redim
                     </button>
@@ -382,6 +340,9 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
         </div>
         <aside className="rounded-2xl border border-ink/10 bg-paper/45 p-4">
           <h3 className="font-display text-2xl text-ink">Coordenadas</h3>
+          <div className="mt-3 rounded-2xl border border-ink/10 bg-white px-3 py-2 text-sm font-bold text-ink">
+            Fonte do corpo: {bodyPreviewMetrics.fontSizePx.toFixed(1)}px
+          </div>
           <div className="mt-3 max-h-[30rem] space-y-2 overflow-auto pr-1 text-xs font-bold text-ink/70">
             {Object.entries(currentCoordinates).map(([key, value]) => <div key={key} className="flex justify-between gap-3 rounded-xl bg-white px-3 py-2"><span>{key}</span><span>{value}</span></div>)}
           </div>
@@ -828,3 +789,5 @@ export function CalibracaoTab({ hospital, onCoordinatesSaved, onHospitalSaved })
     </section>
   )
 }
+
+
