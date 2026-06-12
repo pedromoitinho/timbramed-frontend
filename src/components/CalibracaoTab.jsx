@@ -68,6 +68,12 @@ function normalizeWhitespace(value) {
     .trim()
 }
 
+function normalizeBodyText(value) {
+  return normalizeWhitespace(value)
+    .replace(/\s+-\s*/g, "\n-")
+    .trim()
+}
+
 function capitalizeName(value) {
   return String(value || "").trim().replace(/\b\w/g, c => c.toUpperCase())
 }
@@ -77,7 +83,7 @@ function buildReportPreview(report) {
 
   return {
     title: reportTitle,
-    bodyText: normalizeWhitespace(message),
+    bodyText: normalizeBodyText(message),
     cidText: "CID: M51.1, G56.0, M79.7",
   }
 }
