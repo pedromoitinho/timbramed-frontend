@@ -38,7 +38,7 @@ export function FilaTab({ hospital, user }) {
         pacientes: selectedReports.map(report => reportToPatient(report, user)),
         comRelatorio
       })
-      openPdf(blob)
+      openPdf(blob, `timbramed-${Date.now()}.pdf`)
       markCompleted(selectedReports.map(report => report.id))
     } catch (error) {
       setErro(error.message)

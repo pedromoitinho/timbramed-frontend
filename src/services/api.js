@@ -222,6 +222,21 @@ export function createReport(payload) {
   })
 }
 
+async function readPdfResponse(response) {
+  if (!response.ok) {
+    throw new Error(await readError(response))
+  }
+
+  const contentType = response.headers.get("Content-Type") || ""
+  const blob = await response.blob()
+
+  if (!contentType.includes("application/pdf")) {
+    throw new Error("A API nao retornou um arquivo PDF valido.")
+  }
+
+  return new Blob([blob], { type: "application/pdf" })
+}
+
 export async function generatePdf(payload) {
   let response
 
@@ -229,6 +244,7 @@ export async function generatePdf(payload) {
     response = await fetch(`${API_URL}/generate-pdf`, {
       method: "POST",
       headers: {
+        "Accept": "application/pdf",
         "Content-Type": "application/json",
         ...authHeaders()
       },
@@ -238,25 +254,18 @@ export async function generatePdf(payload) {
     throw new Error("Não foi possível conectar à API. Verifique se o backend está rodando e se o endereço está correto.")
   }
 
-  if (!response.ok) {
-    throw new Error(await readError(response))
-  }
-
-  return response.blob()
+  return readPdfResponse(response)
 }
 
-export function openPdf(blob) {
-  const url = window.URL.createObjectURL(blob)
-  const tab = window.open(url, "_blank", "noopener,noreferrer")
-
-  if (!tab) {
-    const anchor = document.createElement("a")
-    anchor.href = url
-    anchor.download = `timbramed-${Date.now()}.pdf`
-    document.body.appendChild(anchor)
-    anchor.click()
-    anchor.remove()
-  }
+export function openPdf(blob, filename = `timbramed-${Date.now()}.pdf`) {
+  const pdfBlob = blob.type === "application/pdf" ? blob : new Blob([blob], { type: "application/pdf" })
+  const url = window.URL.createObjectURL(pdfBlob)
+  const anchor = document.createElement("a")
+  anchor.href = url
+  anchor.download = filename.toLowerCase().endsWith(".pdf") ? filename : `${filename}.pdf`
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
 
   window.setTimeout(() => window.URL.revokeObjectURL(url), 60000)
 }
@@ -266,12 +275,11 @@ export async function generateExamPdf(payload) {
   try {
     response = await fetch(`${API_URL}/generate-exam-pdf`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Accept": "application/pdf", "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify(payload)
     })
   } catch {
     throw new Error("Não foi possível conectar à API. Verifique se o backend está rodando.")
   }
-  if (!response.ok) throw new Error(await readError(response))
-  return response.blob()
+  return readPdfResponse(response)
 }

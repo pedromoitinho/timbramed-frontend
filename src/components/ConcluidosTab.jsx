@@ -38,7 +38,7 @@ export function ConcluidosTab({ hospital, user }) {
         pacientes: selectedReports.map(report => reportToPatient(report, user)),
         comRelatorio
       })
-      openPdf(blob)
+      openPdf(blob, `timbramed-${Date.now()}.pdf`)
       clearSelection()
     } catch (error) {
       setErro(error.message)

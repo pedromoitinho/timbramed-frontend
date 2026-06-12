@@ -22,7 +22,7 @@ export function AtendimentoExameTab({ hospital, user }) {
         paciente: form,
         comExame: !!hospital.exameImagem
       })
-      openPdf(blob)
+      openPdf(blob, `exame-${Date.now()}.pdf`)
     } catch (apiError) { setError(apiError.message) }
     finally { setBusy(false) }
   }
