@@ -6,7 +6,7 @@ import { usePrintQueueStore } from "../store/usePrintQueueStore.js"
 const paper = { width: 14.8, height: 21 }
 const reportTitle = "RELATÓRIO"
 const previewFontFamily = '"Source Serif 4", serif'
-const minBodyFontSizePx = 8
+const minBodyFontSizePx = 4
 const maxBodyFontSizePx = 30
 const titleFontSize = 13.5
 const lineGapPt = 2
@@ -156,9 +156,10 @@ function measureWrappedHeightPx(text, fontSizePx, widthPx) {
 function computeAutoBodyFontSizePx(text, box) {
   const widthPx = (box.w / 100 * paper.width) / 2.54 * 96
   const heightPx = (box.h / 100 * paper.height) / 2.54 * 96
+  const safeHeightPx = heightPx * 0.96
 
-  for (let size = maxBodyFontSizePx; size >= minBodyFontSizePx; size -= 0.5) {
-    if (measureWrappedHeightPx(text, size, widthPx) <= heightPx) {
+  for (let size = maxBodyFontSizePx; size >= minBodyFontSizePx; size -= 0.25) {
+    if (measureWrappedHeightPx(text, size, widthPx) <= safeHeightPx) {
       return size
     }
   }
