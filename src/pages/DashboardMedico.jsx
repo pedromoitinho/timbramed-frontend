@@ -45,16 +45,27 @@ export function DashboardMedico({ user }) {
     async function load() {
       try {
         setLoading(true); setError("")
-        const hospitals = await listHospitals()
-        const current = hospitals.find(item => item.id === user?.hospitalAtualId) || hospitals[0]
-        if (!current) {
-          setHospital(null)
-          setError("Nenhum ambiente configurado para este médico")
+        const currentId = user?.hospitalAtualId
+
+        if (!currentId) {
+          const hospitals = await listHospitals()
+          const fallback = hospitals[0]
+          if (!fallback) {
+            setHospital(null)
+            setError("Nenhum ambiente configurado para este médico")
+            return
+          }
+          const fullHospital = await getHospital(fallback.id)
+          setHospital(fullHospital)
+          const [catalogData, reports] = await Promise.all([listCatalog(fallback.id), listReports(fallback.id)])
+          setCatalog(catalogData)
+          setReports(reports)
           return
         }
-        const fullHospital = await getHospital(current.id)
+
+        const fullHospital = await getHospital(currentId)
         setHospital(fullHospital)
-        const [catalogData, reports] = await Promise.all([listCatalog(current.id), listReports(current.id)])
+        const [catalogData, reports] = await Promise.all([listCatalog(currentId), listReports(currentId)])
         setCatalog(catalogData)
         setReports(reports)
       } catch (apiError) {
