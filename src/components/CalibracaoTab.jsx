@@ -6,6 +6,7 @@ import { formatDate } from "../utils/reports.js"
 
 const paper = { width: 14.8, height: 21 }
 const reportTitle = "RELATÓRIO"
+const reportDateCity = "Feira de Santana"
 const previewFontFamily = '"Source Serif 4", serif'
 const minBodyFontSizePx = 4
 const maxBodyFontSizePx = 30
@@ -98,7 +99,7 @@ function buildReportPreview(report) {
     title: reportTitle,
     bodyText: [`Paciente: ${capitalizeName(patientName)}`, normalizeBodyText(message)].filter(Boolean).join("\n\n"),
     cidText: `CID: ${cid}`,
-    dateText: formatDate(report?.dataRelatorio)
+    dateText: `${reportDateCity}, ${formatDate(report?.dataRelatorio)}`
   }
 }
 
