@@ -18,6 +18,13 @@ export const usePrintQueueStore = create((set, get) => ({
   addReport: report => set(state => ({
     fila: [report, ...state.fila]
   })),
+  patchReport: (id, patch) => set(state => {
+    const apply = report => report.id === id ? { ...report, ...patch } : report
+    return {
+      fila: state.fila.map(apply),
+      concluidos: state.concluidos.map(apply)
+    }
+  }),
   toggleFila: id => set(state => ({
     selecionadosFila: state.selecionadosFila.includes(id)
       ? state.selecionadosFila.filter(selectedId => selectedId !== id)

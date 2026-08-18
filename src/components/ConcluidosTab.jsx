@@ -2,6 +2,9 @@ import { useMemo, useState } from "react"
 import { generatePdf, openPdf } from "../services/api.js"
 import { usePrintQueueStore } from "../store/usePrintQueueStore.js"
 import { formatDate, reportToPatient } from "../utils/reports.js"
+import { ReportRowOptions } from "./ReportOptions.jsx"
+
+const rowGrid = "sm:grid-cols-[52px_minmax(0,1.3fr)_minmax(0,0.6fr)_112px_minmax(19rem,auto)]"
 
 function matchesSearch(report, search) {
   const value = search.trim().toLowerCase()
@@ -30,12 +33,14 @@ export function ConcluidosTab({ hospital, user }) {
   const allSelected = concluidos.length > 0 && selecionados.length === concluidos.length
 
   async function handleReprintSelected() {
-    if (!hospital?.id || selectedReports.length === 0) return
+    const state = usePrintQueueStore.getState()
+    const reports = state.concluidos.filter(report => state.selecionadosConcluidos.includes(report.id))
+    if (!hospital?.id || reports.length === 0) return
     try {
       setCarregando(true); setErro("")
       const blob = await generatePdf({
         hospitalId: hospital.id,
-        pacientes: selectedReports.map(report => reportToPatient(report, user)),
+        pacientes: reports.map(report => reportToPatient(report, user)),
         comRelatorio
       })
       openPdf(blob, `timbramed-${Date.now()}.pdf`)
@@ -76,9 +81,9 @@ export function ConcluidosTab({ hospital, user }) {
       </div>
       {erro && <div className="mt-4 rounded-2xl bg-clay/10 px-4 py-3 text-sm font-bold text-clay">{erro}</div>}
       <div className="mt-5 overflow-hidden rounded-2xl border border-ink/10">
-        <div className="hidden grid-cols-[52px_1fr_1fr_112px] items-center gap-3 bg-ink px-4 py-3 text-xs font-extrabold uppercase tracking-[0.2em] text-paper sm:grid">
+        <div className={`hidden items-center gap-3 bg-ink px-4 py-3 text-xs font-extrabold uppercase tracking-[0.2em] text-paper sm:grid ${rowGrid}`}>
           <input type="checkbox" checked={allSelected} onChange={toggleTodos} className="h-5 w-5 accent-pen" />
-          <span>Paciente</span><span>CID</span><span>Impresso</span>
+          <span>Paciente</span><span>CID</span><span>Impresso</span><span>Data · Carimbo · Data no PDF</span>
         </div>
         <label className="flex items-center gap-3 bg-ink px-4 py-3 text-sm font-bold text-paper sm:hidden">
           <input type="checkbox" checked={allSelected} onChange={toggleTodos} className="h-5 w-5 accent-pen" />
@@ -89,17 +94,20 @@ export function ConcluidosTab({ hospital, user }) {
         ) : filteredConcluidos.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm font-semibold text-ink/60">Nenhum resultado encontrado.</div>
         ) : filteredConcluidos.map(report => (
-          <div key={report.id} className="border-t border-ink/10 px-4 py-4 text-sm sm:grid sm:grid-cols-[52px_1fr_1fr_112px] sm:items-center sm:gap-3">
+          <div key={report.id} className={`border-t border-ink/10 px-4 py-4 text-sm sm:grid sm:items-center sm:gap-3 ${rowGrid}`}>
             <div className="mb-3 flex items-center gap-3 sm:mb-0">
               <input type="checkbox" checked={selecionados.includes(report.id)} onChange={() => toggleSelecionado(report.id)} className="h-5 w-5 accent-pen" />
               <span className="font-extrabold text-ink sm:hidden">Selecionar</span>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="font-extrabold text-ink">{report.pacienteNome}</p>
               <p className="mt-1 line-clamp-2 text-xs text-ink/55">{report.mensagemFinal}</p>
             </div>
             <span className="mt-2 block font-semibold text-ink/70 sm:mt-0">{report.cid || "—"}</span>
             <span className="mt-1 block font-semibold text-ink/70 sm:mt-0">{formatDate(report.impressoEm || report.dataRelatorio)}</span>
+            <div className="mt-3 sm:mt-0">
+              <ReportRowOptions report={report} />
+            </div>
           </div>
         ))}
       </div>

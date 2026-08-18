@@ -1,15 +1,28 @@
 import { useState } from "react"
 import { createReport } from "../services/api.js"
 import { usePrintQueueStore } from "../store/usePrintQueueStore.js"
-import { formatDate } from "../utils/reports.js"
+import { dateInputToIso, toDateInputValue } from "../utils/reports.js"
+import { DateField, OptionSwitch } from "./ReportOptions.jsx"
+
+function emptyForm(previous) {
+  return {
+    pacienteNome: "",
+    cids: previous?.cids || [],
+    mensagemFinal: "",
+    dataRelatorio: toDateInputValue(),
+    comCarimbo: previous?.comCarimbo ?? true,
+    comData: previous?.comData ?? true
+  }
+}
 
 export function AtendimentoTab({ hospital, catalog }) {
-  const [form, setForm] = useState({ pacienteNome: "", cids: [], mensagemFinal: "" })
+  const [form, setForm] = useState(() => emptyForm())
   const [localError, setLocalError] = useState("")
   const [success, setSuccess] = useState("")
   const addReport = usePrintQueueStore(state => state.addReport)
   const carregando = usePrintQueueStore(state => state.carregando)
   const setCarregando = usePrintQueueStore(state => state.setCarregando)
+  const hasDatePosition = hospital?.coordenadas?.dataXcm !== null && hospital?.coordenadas?.dataXcm !== undefined
 
   function toggleCid(codigo) {
     setForm(current => ({
@@ -26,6 +39,11 @@ export function AtendimentoTab({ hospital, catalog }) {
       setLocalError("Preencha paciente e mensagem antes de adicionar a fila")
       return
     }
+    const dataRelatorio = dateInputToIso(form.dataRelatorio)
+    if (!dataRelatorio) {
+      setLocalError("Informe uma data válida para o relatório")
+      return
+    }
     try {
       setCarregando(true)
       setLocalError(""); setSuccess("")
@@ -33,12 +51,13 @@ export function AtendimentoTab({ hospital, catalog }) {
         hospitalId: hospital.id,
         pacienteNome: form.pacienteNome.trim(),
         mensagemFinal: form.mensagemFinal.trim(),
-        cid: form.cids.length > 0 ? form.cids.join(", ") : null
+        cid: form.cids.length > 0 ? form.cids.join(", ") : null,
+        dataRelatorio,
+        comCarimbo: form.comCarimbo,
+        comData: form.comData
       })
       addReport(report)
-      setForm(current => ({
-        pacienteNome: "", cids: current.cids, mensagemFinal: ""
-      }))
+      setForm(current => ({ ...emptyForm(current), dataRelatorio: current.dataRelatorio }))
       setSuccess("Paciente adicionado a fila")
     } catch (error) {
       setLocalError(error.message)
@@ -49,7 +68,7 @@ export function AtendimentoTab({ hospital, catalog }) {
     <section className="rounded-[1.5rem] border border-ink/10 bg-white p-4 shadow-sm sm:p-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div><p className="text-xs font-extrabold uppercase tracking-[0.24em] text-clay">Atendimento</p></div>
-        <span className="rounded-2xl bg-pen/10 px-4 py-2 text-sm font-bold text-pen">Data: {formatDate()}</span>
+        <span className="rounded-2xl bg-pen/10 px-4 py-2 text-sm font-bold text-pen">Hoje: {toDateInputValue().split("-").reverse().join("/")}</span>
       </div>
       <form onSubmit={handleSubmit} className="mt-6 grid gap-4 lg:grid-cols-2">
         <label className="block lg:col-span-2">
@@ -79,6 +98,16 @@ export function AtendimentoTab({ hospital, catalog }) {
             className="mt-2 w-full resize-y rounded-2xl border border-ink/10 bg-paper/40 px-4 py-3 outline-none ring-pen/20 transition focus:ring-4"
             placeholder="Escreva o relatório manualmente..." />
         </label>
+        <div className="grid gap-3 rounded-2xl border border-ink/10 bg-paper/25 p-4 lg:col-span-2 lg:grid-cols-3">
+          <DateField value={form.dataRelatorio} onChange={value => setForm(current => ({ ...current, dataRelatorio: value }))}
+            hint="Data que sai impressa no relatório." />
+          <div className="grid gap-3 lg:col-span-2 lg:grid-cols-2 lg:self-end">
+            <OptionSwitch label="Carimbo" description="Imprimir carimbo e assinatura"
+              value={form.comCarimbo} onChange={value => setForm(current => ({ ...current, comCarimbo: value }))} />
+            <OptionSwitch label="Data no relatório" description={hasDatePosition ? "Imprimir a data no papel" : "Posicione a data em Calibração"}
+              value={form.comData} onChange={value => setForm(current => ({ ...current, comData: value }))} />
+          </div>
+        </div>
         {(localError || success) && (
           <div className={`rounded-2xl px-4 py-3 text-sm font-bold lg:col-span-2 ${localError ? "bg-clay/10 text-clay" : "bg-moss/10 text-moss"}`}>
             {localError || success}

@@ -222,6 +222,13 @@ export function createReport(payload) {
   })
 }
 
+export function updateReport(id, payload) {
+  return apiRequest(`/reports/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  })
+}
+
 async function readPdfResponse(response) {
   if (!response.ok) {
     throw new Error(await readError(response))

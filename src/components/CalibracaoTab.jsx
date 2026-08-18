@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { ImageCropModal } from "./ImageCropModal.jsx"
 import { updateCoordinates, updateExamCoordinates, updateExamImage, updateReportImage } from "../services/api.js"
 import { usePrintQueueStore } from "../store/usePrintQueueStore.js"
+import { formatDate } from "../utils/reports.js"
 
 const paper = { width: 14.8, height: 21 }
 const reportTitle = "RELATÓRIO"
@@ -9,17 +10,26 @@ const previewFontFamily = '"Source Serif 4", serif'
 const minBodyFontSizePx = 4
 const maxBodyFontSizePx = 30
 const titleFontSize = 13.5
+// Mesmos valores do backend (pdfReportService.js): fonte de linha unica, gaps do pdfkit e caixa do carimbo.
+const singleLineFontSizePt = 12.5
 const lineGapPt = 2
+const paragraphGapPt = 4
+// Altura de linha real do pdfkit para a Source Serif 4 (ascender - descender), em multiplos do tamanho da fonte.
+const pdfLineHeightFactor = 1.371
+const stampBoxHeightCm = 2.4
+const defaultDateCoordinates = { xCm: 5.4, yCm: -16.5 }
 const boxLabels = {
   titulo: "Titulo",
   corpo: "Corpo do texto",
   cid: "CID",
+  data: "Data",
   carimbo: "Carimbo médico"
 }
 const boxColors = {
   titulo: "border-clay bg-clay/15",
   corpo: "border-pen bg-pen/10",
   cid: "border-moss bg-moss/15",
+  data: "border-pen bg-pen/10",
   carimbo: "border-clay bg-clay/15"
 }
 const imageAccept = "image" + "/" + "*"
@@ -79,13 +89,26 @@ function capitalizeName(value) {
 }
 
 function buildReportPreview(report) {
-  const message = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor. Cras elementum ultrices diam."
+  // Usa o primeiro relatorio real (fila ou concluidos) para o preview ficar igual ao PDF; senao, texto de exemplo.
+  const patientName = report?.pacienteNome || "Maria da Silva"
+  const message = report?.mensagemFinal || "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor. Cras elementum ultrices diam."
+  const cid = report?.cid || "M51.1, G56.0, M79.7"
 
   return {
     title: reportTitle,
-    bodyText: normalizeBodyText(message),
-    cidText: "CID: M51.1, G56.0, M79.7",
+    bodyText: [`Paciente: ${capitalizeName(patientName)}`, normalizeBodyText(message)].filter(Boolean).join("\n\n"),
+    cidText: `CID: ${cid}`,
+    dateText: formatDate(report?.dataRelatorio)
   }
+}
+
+function hasCoordinate(value) {
+  return value !== null && value !== undefined && value !== "" && !Number.isNaN(Number(value))
+}
+
+function stampBoxWidthPercent(xPercent) {
+  // O PDF encaixa o carimbo em [largura ate a borda direita da folha] x [2,4 cm], alinhado no canto superior esquerdo.
+  return Math.max(100 - xPercent, 1)
 }
 
 function boxesFromCoordinates(coordinates, preview) {
@@ -93,12 +116,17 @@ function boxesFromCoordinates(coordinates, preview) {
   const bodyY = cmToYPercent(coordinates.corpoYcm)
   const bodyW = cmToXPercent(Number(coordinates.corpoMaxXcm) - Number(coordinates.corpoXcm))
   const bodyH = cmToYPercent(Number(coordinates.corpoLimiteInferiorYcm) - Number(coordinates.corpoYcm))
-  const cidW = Math.max(textWidthCm(preview.cidText, ptToPx(10.5)) + 0.35, 5.2)
+  const cidW = Math.max(textWidthCm(preview.cidText, ptToPx(singleLineFontSizePt)) + 0.35, 5.2)
+  const dateW = Math.max(textWidthCm(preview.dateText, ptToPx(singleLineFontSizePt)) + 0.35, 2.6)
+  const dateXcm = hasCoordinate(coordinates.dataXcm) ? coordinates.dataXcm : defaultDateCoordinates.xCm
+  const dateYcm = hasCoordinate(coordinates.dataYcm) ? coordinates.dataYcm : defaultDateCoordinates.yCm
+  const stampX = cmToXPercent(coordinates.carimboXcm)
   return {
     titulo: { x: cmToXPercent(coordinates.tituloXcm), y: cmToYPercent(coordinates.tituloYcm), w: cmToXPercent(textWidthCm(preview.title, ptToPx(titleFontSize))), h: cmToYPercent(0.7) },
     corpo: { x: bodyX, y: bodyY, w: bodyW, h: bodyH },
-    cid: { x: cmToXPercent(coordinates.cidXcm), y: cmToYPercent(coordinates.cidYcm), w: cmToXPercent(cidW), h: cmToYPercent(0.95) },
-    carimbo: { x: cmToXPercent(coordinates.carimboXcm), y: cmToYPercent(coordinates.carimboYcm), w: cmToXPercent(4.2), h: cmToYPercent(1.85) }
+    cid: { x: cmToXPercent(coordinates.cidXcm), y: cmToYPercent(coordinates.cidYcm), w: cmToXPercent(cidW), h: cmToYPercent(0.8) },
+    data: { x: cmToXPercent(dateXcm), y: cmToYPercent(dateYcm), w: cmToXPercent(dateW), h: cmToYPercent(0.8) },
+    carimbo: { x: stampX, y: cmToYPercent(coordinates.carimboYcm), w: stampBoxWidthPercent(stampX), h: cmToYPercent(stampBoxHeightCm) }
   }
 }
 
@@ -113,7 +141,9 @@ function coordinatesFromBoxes(boxes) {
     cidXcm: percentToXCm(boxes.cid.x),
     cidYcm: percentToYCm(boxes.cid.y),
     carimboXcm: percentToXCm(boxes.carimbo.x),
-    carimboYcm: percentToYCm(boxes.carimbo.y)
+    carimboYcm: percentToYCm(boxes.carimbo.y),
+    dataXcm: percentToXCm(boxes.data.x),
+    dataYcm: percentToYCm(boxes.data.y)
   }
 }
 
@@ -154,9 +184,17 @@ function wrapTextLines(text, fontSizePx, widthPx) {
   return lines
 }
 
+function lineHeightPxFor(fontSizePx) {
+  return fontSizePx * pdfLineHeightFactor + ptToPx(lineGapPt)
+}
+
+function paragraphCount(text) {
+  return String(text || "").split("\n").length
+}
+
 function measureWrappedHeightPx(text, fontSizePx, widthPx) {
   const lines = wrapTextLines(text, fontSizePx, widthPx)
-  return lines.length * (fontSizePx * 1.2 + ptToPx(lineGapPt))
+  return lines.length * lineHeightPxFor(fontSizePx) + paragraphCount(text) * ptToPx(paragraphGapPt)
 }
 
 function computeAutoBodyFontSizePx(text, box) {
@@ -177,12 +215,13 @@ function computeBodyPreviewMetrics(text, box) {
   const widthPx = (box.w / 100 * paper.width) / 2.54 * 96
   const paperHeightPx = paper.height / 2.54 * 96
   const fontSizePx = computeAutoBodyFontSizePx(text, box)
-  const lineHeightPx = fontSizePx * 1.2 + ptToPx(lineGapPt)
+  const lineHeightPx = lineHeightPxFor(fontSizePx)
   const lines = wrapTextLines(text, fontSizePx, widthPx)
-  const heightPercent = Math.min(box.h, lines.length * lineHeightPx / paperHeightPx * 100)
+  const heightPercent = Math.min(box.h, measureWrappedHeightPx(text, fontSizePx, widthPx) / paperHeightPx * 100)
 
   return {
     fontSizePx,
+    lineHeightPx,
     lines,
     heightPercent: Math.max(heightPercent, cmToYPercent(0.7)),
     lineHeightPercent: lineHeightPx / Math.max(lines.length * lineHeightPx, 1) * 100
@@ -234,6 +273,9 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
         next[active.key] = { ...original, w: clamp(original.w + dx, 8, 100 - original.x) }
       } else if (active.mode === "resize-h") {
         next[active.key] = { ...original, h: clamp(original.h + dy, 4, 100 - original.y) }
+      } else if (active.key === "carimbo") {
+        const x = clamp(original.x + dx, 0, 100 - cmToXPercent(1))
+        next[active.key] = { ...original, x, w: stampBoxWidthPercent(x), y: clamp(original.y + dy, 0, 100 - original.h) }
       } else {
         next[active.key] = { ...original, x: clamp(original.x + dx, 0, 100 - original.w), y: clamp(original.y + dy, 0, 100 - original.h) }
       }
@@ -255,8 +297,29 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
   }
 
   function renderReportBoxContent(key) {
-    if (key === "carimbo" && hospital.carimboImagem) {
-      return <img src={hospital.carimboImagem} alt="" className="pointer-events-none h-full w-full object-contain contrast-150 brightness-90 saturate-115" />
+    if (key === "carimbo" && (hospital.carimboImagem || hospital.assinaturaImagem)) {
+      return (
+        <div className="pointer-events-none absolute inset-0">
+          {hospital.carimboImagem && <img src={hospital.carimboImagem} alt="" className="absolute inset-0 h-full w-full object-contain object-left-top contrast-150 brightness-90 saturate-115" />}
+          {hospital.assinaturaImagem && <img src={hospital.assinaturaImagem} alt="" className="absolute inset-0 h-full w-full object-contain object-left-top" />}
+          <span className="absolute bottom-0 right-0 rounded-tl-md bg-paper/85 px-1 text-[9px] font-extrabold uppercase tracking-[0.12em] text-ink/70">Carimbo · até a borda</span>
+        </div>
+      )
+    }
+
+    if (key === "data") {
+      return (
+        <span
+          className="pointer-events-none absolute left-0 top-0 inline-block rounded-sm bg-paper/80 px-1 py-0.5 text-ink"
+          style={{
+            fontFamily: previewFontFamily,
+            fontSize: `${ptToPx(singleLineFontSizePt)}px`,
+            whiteSpace: "nowrap"
+          }}
+        >
+          {reportPreview.dateText}
+        </span>
+      )
     }
 
     if (key === "titulo") {
@@ -267,14 +330,14 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
       return (
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div
-            className="leading-[1.2] text-ink/80"
+            className="text-ink/80"
             style={{
               fontFamily: previewFontFamily,
               fontSize: `${bodyPreviewMetrics.fontSizePx}px`,
+              lineHeight: `${bodyPreviewMetrics.lineHeightPx}px`,
               textAlign: "justify",
               whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-              hyphens: "auto"
+              overflowWrap: "break-word"
             }}
           >
             {reportPreview.bodyText}
@@ -286,10 +349,10 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
     if (key === "cid") {
       return (
         <span
-          className="pointer-events-none absolute left-0 top-0 inline-block rounded-sm bg-paper/80 px-1 py-0.5 font-extrabold tracking-[0.12em] text-ink"
+          className="pointer-events-none absolute left-0 top-0 inline-block rounded-sm bg-paper/80 px-1 py-0.5 text-ink"
             style={{
               fontFamily: previewFontFamily,
-              fontSize: `${ptToPx(10.5)}px`,
+              fontSize: `${ptToPx(singleLineFontSizePt)}px`,
               whiteSpace: "nowrap"
             }}
         >
@@ -305,8 +368,11 @@ function CalibracaoView({ hospital, onCoordinatesSaved, onSwitchToRelatorio }) {
     <div className="space-y-5">
       <div>
         <h2 className="font-display text-3xl text-ink sm:text-4xl">Ajuste visual das coordenadas</h2>
-        <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-ink/60">O relatório escaneado aparece automaticamente como fundo para ajustar as caixas de texto.</p>
+        <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-ink/60">O relatório escaneado aparece automaticamente como fundo para ajustar as caixas de texto. A caixa "Data" define onde a data sai impressa (quando o relatório estiver com "Data: sim"); o carimbo é encaixado em 2,4 cm de altura, da posição escolhida até a borda direita da folha.</p>
       </div>
+      {hasReport && !hasCoordinate(hospital.coordenadas?.dataXcm) && (
+        <div className="rounded-2xl bg-pen/10 px-4 py-3 text-sm font-bold text-pen">A posição da data ainda não foi salva. Arraste a caixa "Data" para o lugar certo e clique em Salvar coordenadas.</div>
+      )}
       {!hasReport && (
         <div className="rounded-2xl border border-dashed border-clay/30 bg-clay/5 p-5 text-center">
           <p className="text-sm font-bold text-clay">Nenhum relatório enviado ainda.</p>
